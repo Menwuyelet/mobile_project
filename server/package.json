@@ -6,7 +6,11 @@
   "main": "src/server.js",
   "scripts": {
     "dev": "nodemon src/server.js",
-    "start": "node src/server.js"
+    "start": "node src/server.js",
+    "forever": "forever start src/server.js",
+    "forever:stop": "forever stop src/server.js",
+    "forever:list": "forever list",
+    "forever:logs": "forever logs src/server.js"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",
@@ -15,6 +19,7 @@
     "dotenv": "^16.4.5",
     "express": "^4.21.0",
     "express-rate-limit": "^8.4.0",
+    "forever": "^4.0.3",
     "helmet": "^7.1.0",
     "jsonwebtoken": "^9.0.2",
     "mongoose": "^8.7.0",

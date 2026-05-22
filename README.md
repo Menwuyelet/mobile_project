@@ -212,6 +212,20 @@ For demo/setup convenience, the first registered account becomes `admin`.
 - [Test Plan](docs/TEST_PLAN.md)
 - [UML Text](docs/UML_TEXT.md)
 - [Submission Checklist](docs/SUBMISSION_CHECKLIST.md)
+- [Deployment Guide](docs/DEPLOYMENT_GUIDE.md)
+- [API Specification](docs/API_SPEC.md)
+- [MongoDB Schema](docs/MONGODB_SCHEMA.md)
+- [Feature Matrix](docs/FEATURE_MATRIX.md)
+- [Test Plan](docs/TEST_PLAN.md)
+- [UML Text](docs/UML_TEXT.md)
+- [Submission Checklist](docs/SUBMISSION_CHECKLIST.md)
+- [Deployment Guide](docs/DEPLOYMENT_GUIDE.md)
+- [API Specification](docs/API_SPEC.md)
+- [MongoDB Schema](docs/MONGODB_SCHEMA.md)
+- [Feature Matrix](docs/FEATURE_MATRIX.md)
+- [Test Plan](docs/TEST_PLAN.md)
+- [UML Text](docs/UML_TEXT.md)
+- [Submission Checklist](docs/SUBMISSION_CHECKLIST.md)
 
 ## Screenshot Assets Path
 
@@ -219,69 +233,50 @@ All documentation screenshots are stored in:
 
 - `docs/doc_image/`
 
-All image paths:
-
-- `docs/doc_image/account.jpg`
-- `docs/doc_image/alerts.jpg`
-- `docs/doc_image/darkmode_account.jpg`
-- `docs/doc_image/found-items-search.jpg`
-- `docs/doc_image/home_page.jpg`
-- `docs/doc_image/home_page1.jpg`
-- `docs/doc_image/login.jpg`
-- `docs/doc_image/lost-found-form.jpg`
-- `docs/doc_image/lost_form.jpg`
-- `docs/doc_image/report_item.jpg`
-
 ## Main Screenshot Preview
 
 ### Home
 
 The Home screen is the discovery hub. Users see recent lost/found reports, quick actions, and visual highlights for faster browsing.
 
-![Home Screen](docs/doc_image/home_page.jpg)
 Display Note: This primary home display highlights mobile-first feed scanning for quick item-type and urgency recognition. User Action: open a card directly from feed; Outcome: faster transition from discovery to contact/recovery steps.
-![Home Screen Variant](docs/doc_image/home_page1.jpg)
+
 Display Note: This alternate home variation supports continuous image-led browsing and rapid cross-card comparison. User Action: swipe/scroll through similar items; Outcome: improved visual matching when details are subtle.
 
 ### Login
 
 The Login screen provides secure access to reporting, chat, saved items, and recovery actions for authenticated users.
 
-![Login Screen](docs/doc_image/login.jpg)
 Display Note: This login display is the secure gateway to protected workflows (report, chat, saved, verify). User Action: sign in once; Outcome: access to identity-linked features and safer moderated interactions.
 
 ### Reports
 
 The Report flow helps users submit complete and trusted reports using structured fields, location details, and image attachment.
 
-![Report Item Screen](docs/doc_image/report_item.jpg)
 Display Note: This reporting display uses progressive structure with validation to improve data quality. User Action: complete guided fields in sequence; Outcome: higher-quality reports and stronger downstream matching.
-![Lost Form](docs/doc_image/lost_form.jpg)
+
 Display Note: This lost-item form emphasizes safety metadata (proof hint, urgency, meetup guidance). User Action: provide ownership/recovery context up front; Outcome: safer handoff planning and reduced false claims.
-![Lost and Found Form](docs/doc_image/lost-found-form.jpg)
+
 Display Note: This unified template supports both lost and found flows with status-aware field behavior. User Action: switch status inside one form; Outcome: consistent UX with scenario-specific guidance preserved.
 
 ### Search
 
 The Search and found-items view supports quick filtering and matching to reduce recovery time.
 
-![Found Items Or Search](docs/doc_image/found-items-search.jpg)
 Display Note: This search display uses filtering + keywords for fast narrowing in high-volume lists. User Action: apply campus/category/keyword filters; Outcome: quicker identification of likely matches.
 
 ### Account
 
 The Account area manages user profile, preferences, and personal activity context, including dark-mode experience.
 
-![Account Screen](docs/doc_image/account.jpg)
 Display Note: This account display centralizes profile, preferences, and session settings. User Action: manage identity and app behavior in one place; Outcome: lower friction for returning users.
-![Dark Mode Account](docs/doc_image/darkmode_account.jpg)
+
 Display Note: This dark-mode account display improves low-light comfort with balanced contrast hierarchy. User Action: switch/use theme in dim conditions; Outcome: better readability and reduced eye strain.
 
 ### Alerts
 
 The Alerts screen surfaces important updates such as match events and moderation/recovery-related notifications.
 
-![Alerts Screen](docs/doc_image/alerts.jpg)
 Display Note: This alerts display prioritizes match/moderation/recovery signals in timeline order. User Action: open latest actionable event first; Outcome: faster response to time-sensitive recovery opportunities.
 
 ## Detailed Per-Image Notes

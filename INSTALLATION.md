@@ -249,39 +249,13 @@ ANDROID_SERIAL=ABC123 npm run android:usb:device
 ## **✨ New UI Features Explained**
 
 ### **Login Screen:**
-```
-┌─────────────────────┐
-│   [Teal Gradient]   │
-│   ┌───────────────┐ │
-│   │ [White Logo]  │ │
-│   └───────────────┘ │
-│                     │
-│   LAFMS             │
-│   Campus Lost ...   │
-│   Sign in to...     │
-│                     │
-│   ┌──────┐          │
-│   │📧    │ Email    │
-│   │──────│ address  │
-│   │you@..│          │
-│   └──────┘          │
-│                     │
-│   ┌──────────────┐  │
-│   │🔒 Password🔓 │  │
-│   │──────────────│  │
-│   │••••••••••    │  │
-│   └──────────────┘  │
-│                     │
-│   ☑ Remember me     │
-│                     │
-│   [SIGN IN BUTTON]  │
-│                     │
-│   ─────New here?─── │
-│   [Create Account]  │
-│                     │
-│  Secure • Fast ...  │
-└─────────────────────┘
-```
+The login screen features a modern teal gradient background with:
+- White logo at the top
+- LAFMS branding and description
+- Email and password fields with eye icon for password visibility toggle
+- Remember me checkbox
+- Sign in button
+- Link to create account for new users
 
 ---
 
