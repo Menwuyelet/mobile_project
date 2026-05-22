@@ -89,7 +89,6 @@ const AccountScreen = () => {
   const [profileForm, setProfileForm] = useState({
     name: '',
     email: '',
-    campus: DEFAULT_CAMPUS,
     avatarUrl: '',
   });
   const [passwordForm, setPasswordForm] = useState({
@@ -103,7 +102,6 @@ const AccountScreen = () => {
     setProfileForm({
       name: user?.name || '',
       email: user?.email || '',
-      campus: user?.campus || DEFAULT_CAMPUS,
       avatarUrl: user?.avatarUrl || '',
     });
   }, [user]);
@@ -155,7 +153,7 @@ const AccountScreen = () => {
     const payload = {
       name: profileForm.name.trim(),
       email: profileForm.email.trim(),
-      campus: profileForm.campus.trim(),
+      campus: (user?.campus || DEFAULT_CAMPUS).trim(),
       avatarUrl: profileForm.avatarUrl,
     };
 
@@ -165,10 +163,6 @@ const AccountScreen = () => {
     }
     if (!isValidEmail(payload.email)) {
       Alert.alert('Validation', 'Please enter a valid email.');
-      return;
-    }
-    if (!payload.campus) {
-      Alert.alert('Validation', 'Please enter your campus.');
       return;
     }
 
@@ -278,7 +272,7 @@ const AccountScreen = () => {
             </View>
             <View style={styles.nameRow}>
               <AppIcon name="account-circle-outline" size={20} color="#143b44" />
-              <Text style={styles.nameText}>{profileForm.name || 'Campus User'}</Text>
+              <Text style={styles.nameText}>{profileForm.name || 'LAFMS User'}</Text>
             </View>
             <View style={styles.metaRow}>
               <AppIcon name="calendar-month-outline" size={14} color="#5f7a80" />
@@ -334,13 +328,6 @@ const AccountScreen = () => {
               value={profileForm.email}
               onChangeText={(email) => updateProfileField({ email })}
               autoCorrect={false}
-            />
-            <TextInput
-              style={styles.input}
-              placeholder="Campus"
-              placeholderTextColor="#6a7f86"
-              value={profileForm.campus}
-              onChangeText={(campus) => updateProfileField({ campus })}
             />
             <CompactButton
               label="Save Profile"

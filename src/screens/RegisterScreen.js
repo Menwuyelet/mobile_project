@@ -23,7 +23,6 @@ const RegisterScreen = ({ navigation }) => {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [campus, setCampus] = useState(DEFAULT_CAMPUS);
   const [submitting, setSubmitting] = useState(false);
 
   const onSubmit = async () => {
@@ -44,7 +43,7 @@ const RegisterScreen = ({ navigation }) => {
 
     setSubmitting(true);
     try {
-      await register({ name: name.trim(), email: email.trim(), password, campus: campus.trim() });
+      await register({ name: name.trim(), email: email.trim(), password, campus: DEFAULT_CAMPUS });
     } finally {
       setSubmitting(false);
     }
@@ -107,17 +106,6 @@ const RegisterScreen = ({ navigation }) => {
               secureTextEntry
               value={password}
               onChangeText={setPassword}
-            />
-            <View style={styles.fieldLabelRow}>
-              <AppIcon name="school-outline" size={14} color="#355158" />
-              <Text style={styles.fieldLabel}>Campus</Text>
-            </View>
-            <TextInput
-              style={styles.input}
-              placeholder="Campus"
-              placeholderTextColor="#6a7f86"
-              value={campus}
-              onChangeText={setCampus}
             />
 
             <Pressable style={[styles.button, submitting && styles.buttonDisabled]} onPress={onSubmit} disabled={submitting}>

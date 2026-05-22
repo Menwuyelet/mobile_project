@@ -4,7 +4,7 @@ const itemSchema = new mongoose.Schema(
   {
     status: {
       type: String,
-      enum: ['lost', 'found', 'recovered'],
+      enum: ['lost', 'found', 'recovered', 'archived'],
       required: true,
     },
     title: {
@@ -81,6 +81,11 @@ const itemSchema = new mongoose.Schema(
     recoveredAt: {
       type: Date,
       default: null,
+    },
+    archivedAt: {
+      type: Date,
+      default: () => new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days from now
+      index: true
     },
   },
   { timestamps: true }

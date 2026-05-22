@@ -2,7 +2,7 @@
   "name": "campus-lost-found-mobile",
   "version": "1.0.0",
   "private": true,
-  "description": "Lost and Found Mobile Application for Campus (React Native client)",
+  "description": "LAFMS mobile application (React Native client)",
   "scripts": {
     "start": "react-native start",
     "start:reset": "react-native start --reset-cache",
@@ -22,18 +22,21 @@
   },
   "dependencies": {
     "@react-native-async-storage/async-storage": "^1.24.0",
-    "@react-native-community/geolocation": "^3.4.0",
     "@react-navigation/bottom-tabs": "^6.6.1",
     "@react-navigation/native": "^6.1.18",
     "@react-navigation/native-stack": "^6.11.0",
     "axios": "^1.8.3",
     "react": "18.2.0",
     "react-native": "0.74.5",
+    "react-native-background-timer": "^2.4.1",
     "react-native-image-picker": "^7.2.3",
-    "react-native-maps": "^1.10.0",
+    "react-native-linear-gradient": "^2.8.1",
+    "react-native-push-notification": "^8.1.1",
+    "react-native-reanimated": "^2.17.0",
     "react-native-safe-area-context": "^4.12.0",
     "react-native-screens": "^3.34.0",
-    "react-native-vector-icons": "^10.3.0"
+    "react-native-vector-icons": "^10.3.0",
+    "socket.io-client": "^4.7.2"
   },
   "devDependencies": {
     "@babel/core": "^7.25.2",

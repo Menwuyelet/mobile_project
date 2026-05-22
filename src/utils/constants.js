@@ -10,8 +10,6 @@ export const CATEGORIES = [
   'Other',
 ];
 
-export const CAMPUSES = ['Adama Campus', 'Main Campus', 'Satellite Campus'];
-
 export const REPORT_VALIDATION_RULES = {
   TITLE_MIN: 3,
   DESC_MIN: 10,

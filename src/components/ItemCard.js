@@ -5,10 +5,29 @@ import { generateItemImageUrl, resolveItemImageUrl } from '../utils/imageFallbac
 
 const ItemCard = ({ item, onPress }) => {
   const statusStyle =
-    item.status === 'lost' ? styles.lost : item.status === 'recovered' ? styles.recovered : styles.found;
+    item.status === 'lost'
+      ? styles.lost
+      : item.status === 'recovered'
+      ? styles.recovered
+      : item.status === 'archived'
+      ? styles.archived
+      : styles.found;
   const statusIcon =
-    item.status === 'lost' ? 'compass-outline' : item.status === 'recovered' ? 'check-circle-outline' : 'package-variant-closed';
-  const statusColor = item.status === 'lost' ? '#8a1f1f' : item.status === 'recovered' ? '#2b3c78' : '#156e22';
+    item.status === 'lost'
+      ? 'compass-outline'
+      : item.status === 'recovered'
+      ? 'check-circle-outline'
+      : item.status === 'archived'
+      ? 'archive-outline'
+      : 'package-variant-closed';
+  const statusColor =
+    item.status === 'lost'
+      ? '#8a1f1f'
+      : item.status === 'recovered'
+      ? '#2b3c78'
+      : item.status === 'archived'
+      ? '#6b7280'
+      : '#156e22';
   const [failedPrimaryImage, setFailedPrimaryImage] = useState(false);
   const imageSource = useMemo(() => {
     const sourceUrl = failedPrimaryImage ? generateItemImageUrl(item) : resolveItemImageUrl(item);
@@ -41,7 +60,7 @@ const ItemCard = ({ item, onPress }) => {
         {item.description}
       </Text>
       <Text style={styles.meta}>
-        <AppIcon name="tag-outline" size={13} color="#777" /> {item.category} | <AppIcon name="school-outline" size={13} color="#777" /> {item.campus}
+        <AppIcon name="tag-outline" size={13} color="#777" /> {item.category}
       </Text>
       <Text style={styles.meta}>
         <AppIcon name="map-marker-outline" size={13} color="#777" /> {item.locationText || 'No location text'}
@@ -95,6 +114,7 @@ const styles = StyleSheet.create({
   lost: { backgroundColor: '#ffd9d9', color: '#8a1f1f' },
   found: { backgroundColor: '#d8f8dc', color: '#156e22' },
   recovered: { backgroundColor: '#e8ebf8', color: '#2b3c78' },
+  archived: { backgroundColor: '#f3f4f6', color: '#6b7280' },
   description: { color: '#444', marginBottom: 8 },
   meta: { color: '#777', fontSize: 12 },
   footerRow: {

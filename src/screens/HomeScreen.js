@@ -4,7 +4,6 @@ import {
   FlatList,
   Image,
   ImageBackground,
-  Linking,
   Pressable,
   RefreshControl,
   SafeAreaView,
@@ -18,12 +17,7 @@ import { useAuth } from '../context/AuthContext';
 import ItemCard from '../components/ItemCard';
 import EmptyState from '../components/EmptyState';
 import AppIcon from '../components/AppIcon';
-import { adamaCampusGallery, adamaHeroImage } from '../assets/images';
-
-const ADAMA_COORDINATE = {
-  latitude: 8.5538,
-  longitude: 39.2904,
-};
+import { lafmsGallery, lafmsHeroImage } from '../assets/images';
 
 const HomeScreen = ({ navigation }) => {
   const { items, loadLatest, loading } = useItems();
@@ -45,19 +39,6 @@ const HomeScreen = ({ navigation }) => {
     return { lost, found, recovered };
   }, [items]);
 
-  const openAdamaMap = useCallback(async () => {
-    const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${ADAMA_COORDINATE.latitude},${ADAMA_COORDINATE.longitude}`;
-    try {
-      const supported = await Linking.canOpenURL(mapsUrl);
-      if (!supported) {
-        Alert.alert('Map', 'Could not open maps on this device.');
-        return;
-      }
-      await Linking.openURL(mapsUrl);
-    } catch (_error) {
-      Alert.alert('Map', 'Could not open Adama University map right now.');
-    }
-  }, []);
 
   const requireLogin = useCallback(() => {
     Alert.alert('Login required', 'Please sign in first to use this feature.');
@@ -66,9 +47,9 @@ const HomeScreen = ({ navigation }) => {
 
   const listHeader = (
     <View style={styles.headerContainer}>
-      <ImageBackground source={adamaHeroImage} style={styles.hero} imageStyle={styles.heroImage}>
+      <ImageBackground source={lafmsHeroImage} style={styles.hero} imageStyle={styles.heroImage}>
         <View style={styles.heroOverlay}>
-          <Text style={styles.heroTitle}>Adama Campus Lost & Found</Text>
+          <Text style={styles.heroTitle}>LAFMS</Text>
           <Text style={styles.heroSubtitle}>Fast reporting, trusted matching, easy recovery</Text>
         </View>
       </ImageBackground>
@@ -89,7 +70,7 @@ const HomeScreen = ({ navigation }) => {
             <AppIcon name="magnify" size={16} color="#153742" />
             <Text style={styles.actionTitle}>Search Reports</Text>
           </View>
-          <Text style={styles.actionMeta}>Filter by campus</Text>
+          <Text style={styles.actionMeta}>Filter by item details</Text>
         </Pressable>
         <Pressable style={({ pressed }) => [styles.actionButton, pressed && styles.actionPressed]} onPress={() => navigation.navigate('Saved')}>
           <View style={styles.actionTitleRow}>
@@ -113,7 +94,7 @@ const HomeScreen = ({ navigation }) => {
       <View style={styles.section}>
         <View style={styles.sectionTitleRow}>
           <AppIcon name="chart-box-outline" size={18} color="#173944" />
-          <Text style={styles.sectionTitle}>Campus Overview</Text>
+          <Text style={styles.sectionTitle}>LAFMS Overview</Text>
         </View>
         <View style={styles.summaryRow}>
           <View style={styles.summaryCard}>
@@ -134,36 +115,17 @@ const HomeScreen = ({ navigation }) => {
         </View>
       </View>
 
-      <View style={styles.section}>
-        <View style={styles.sectionTitleRow}>
-          <AppIcon name="map-search-outline" size={18} color="#173944" />
-          <Text style={styles.sectionTitle}>Adama University Map</Text>
-        </View>
-        <View style={styles.mapCard}>
-          <Image source={adamaCampusGallery[1]} style={styles.mapPreviewImage} />
-          <View style={styles.mapOverlay}>
-            <Text style={styles.mapOverlayTitle}>Adama Science and Technology University</Text>
-            <Text style={styles.mapOverlayMeta}>Lat {ADAMA_COORDINATE.latitude} | Lng {ADAMA_COORDINATE.longitude}</Text>
-          </View>
-        </View>
-        <Pressable style={({ pressed }) => [styles.mapButton, pressed && styles.mapButtonPressed]} onPress={openAdamaMap}>
-          <View style={styles.mapButtonInner}>
-            <AppIcon name="google-maps" size={14} color="#ffffff" />
-            <Text style={styles.mapButtonText}>Open in Google Maps</Text>
-          </View>
-        </Pressable>
-      </View>
 
       <View style={styles.section}>
         <View style={styles.sectionTitleRow}>
           <AppIcon name="image-multiple-outline" size={18} color="#173944" />
-          <Text style={styles.sectionTitle}>Adama Campus Gallery</Text>
+          <Text style={styles.sectionTitle}>LAFMS Gallery</Text>
         </View>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.galleryRow}>
-          {adamaCampusGallery.map((image, index) => (
+          {lafmsGallery.map((image, index) => (
             <View style={styles.galleryCard} key={`gallery-${index}`}>
               <Image source={image} style={styles.galleryImage} />
-              <Text style={styles.galleryText}>Adama Campus</Text>
+              <Text style={styles.galleryText}>LAFMS</Text>
             </View>
           ))}
         </ScrollView>
@@ -173,7 +135,7 @@ const HomeScreen = ({ navigation }) => {
         <AppIcon name="timeline-text-outline" size={18} color="#13363d" />
         <Text style={styles.feedTitle}>Latest Lost & Found Reports</Text>
       </View>
-      <Text style={styles.feedSubtitle}>Live feed from the campus community</Text>
+      <Text style={styles.feedSubtitle}>Live feed from the community</Text>
     </View>
   );
 
@@ -256,47 +218,6 @@ const styles = StyleSheet.create({
   },
   summaryValue: { fontSize: 18, fontWeight: '800', color: '#164a55' },
   summaryLabel: { color: '#5f7a80', marginTop: 2, fontSize: 12 },
-  mapCard: {
-    borderWidth: 1,
-    borderColor: '#d3e2e6',
-    borderRadius: 12,
-    overflow: 'hidden',
-    backgroundColor: '#fff',
-  },
-  mapPreviewImage: {
-    height: 180,
-    width: '100%',
-  },
-  mapOverlay: {
-    position: 'absolute',
-    left: 8,
-    right: 8,
-    bottom: 8,
-    backgroundColor: 'rgba(10, 34, 44, 0.72)',
-    borderRadius: 8,
-    paddingHorizontal: 10,
-    paddingVertical: 8,
-  },
-  mapOverlayTitle: {
-    color: '#f2fbff',
-    fontWeight: '800',
-    fontSize: 13,
-  },
-  mapOverlayMeta: {
-    color: '#c8e7ef',
-    marginTop: 2,
-    fontSize: 12,
-  },
-  mapButton: {
-    marginTop: 8,
-    backgroundColor: '#0d6f7c',
-    borderRadius: 10,
-    paddingVertical: 11,
-    alignItems: 'center',
-  },
-  mapButtonPressed: { opacity: 0.8 },
-  mapButtonInner: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  mapButtonText: { color: '#fff', fontWeight: '800' },
   galleryRow: { gap: 10 },
   galleryCard: {
     width: 220,

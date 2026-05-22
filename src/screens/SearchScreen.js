@@ -13,9 +13,8 @@ import EmptyState from '../components/EmptyState';
 import ItemCard from '../components/ItemCard';
 import AppIcon from '../components/AppIcon';
 import { useItems } from '../context/ItemsContext';
-import { DEFAULT_CAMPUS } from '../config/env';
 
-const defaultFilters = { keyword: '', status: '', campus: DEFAULT_CAMPUS, category: '' };
+const defaultFilters = { keyword: '', status: '', category: '' };
 
 const SearchScreen = ({ navigation }) => {
   const { searchReports } = useItems();

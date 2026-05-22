@@ -40,22 +40,12 @@ const FilterBar = ({ filters, onChange, onSearch, onReset }) => {
         onChangeText={(text) => onChange({ ...filters, keyword: text })}
       />
 
-      <View style={styles.twoColRow}>
-        <IconInput
-          iconName="tag-outline"
-          style={styles.twoColInput}
-          placeholder="Category"
-          value={filters.category}
-          onChangeText={(text) => onChange({ ...filters, category: text })}
-        />
-        <IconInput
-          iconName="school-outline"
-          style={styles.twoColInput}
-          placeholder="Campus"
-          value={filters.campus}
-          onChangeText={(text) => onChange({ ...filters, campus: text })}
-        />
-      </View>
+      <IconInput
+        iconName="tag-outline"
+        placeholder="Category"
+        value={filters.category}
+        onChangeText={(text) => onChange({ ...filters, category: text })}
+      />
 
       <View style={styles.row}>
         <StatusButton value="lost" current={filters.status} onSelect={(status) => onChange({ ...filters, status })} />
@@ -101,8 +91,6 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     paddingHorizontal: 0,
   },
-  twoColRow: { flexDirection: 'row', gap: 8 },
-  twoColInput: { flex: 1 },
   row: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 8 },
   statusButton: {
     borderWidth: 1,

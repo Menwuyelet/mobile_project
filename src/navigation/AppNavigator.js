@@ -36,20 +36,20 @@ const MainTabs = ({ isAdmin }) => {
     <Tab.Navigator
       initialRouteName="Home"
       screenOptions={({ route }) => ({
-        headerStyle: { backgroundColor: '#ffffff' },
+        headerStyle: { backgroundColor: '#f5f8ff' },
         headerShadowVisible: false,
-        headerTintColor: '#103943',
+        headerTintColor: '#1f2f56',
         headerTitleStyle: { fontWeight: '800' },
-        tabBarActiveTintColor: '#0b7285',
-        tabBarInactiveTintColor: '#688189',
+        tabBarActiveTintColor: '#4f46e5',
+        tabBarInactiveTintColor: '#7e84a3',
         tabBarLabelStyle: { fontWeight: '700', fontSize: 12 },
         tabBarStyle: {
           borderTopWidth: 1,
-          borderTopColor: '#d7e6ea',
+          borderTopColor: '#d9dff2',
           height: 62,
           paddingBottom: 8,
           paddingTop: 6,
-          backgroundColor: '#f9feff',
+          backgroundColor: '#ffffff',
         },
         tabBarIcon: ({ color, focused }) => (
           <AppIcon

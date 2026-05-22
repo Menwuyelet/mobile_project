@@ -2,11 +2,11 @@ const ITEM_IMAGE_BASE_URL = 'https://api.dicebear.com/9.x/shapes/png';
 
 const normalizeSeed = (value) => {
   const raw = typeof value === 'string' ? value.trim() : '';
-  return raw || 'campus-lost-found-item';
+  return raw || 'lafms-item';
 };
 
 export const generateItemImageUrl = (item = {}) => {
-  const seedParts = [item.title, item.category, item.status, item.campus]
+  const seedParts = [item.title, item.category, item.status]
     .filter((part) => typeof part === 'string' && part.trim())
     .map((part) => part.trim().toLowerCase());
 

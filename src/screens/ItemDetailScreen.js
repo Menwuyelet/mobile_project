@@ -15,11 +15,20 @@ import {
 import AppIcon from '../components/AppIcon';
 import { useAuth } from '../context/AuthContext';
 import { useItems } from '../context/ItemsContext';
-import { useAppTheme } from '../context/ThemeContext';
 import { itemService } from '../services/itemService';
 import { generateItemImageUrl, resolveItemImageUrl } from '../utils/imageFallback';
 
 const MATCH_LIMIT = 5;
+const THEME_COLORS = {
+  background: '#f4f8fa',
+  card: '#ffffff',
+  cardAlt: '#f0f7f9',
+  text: '#143942',
+  textMuted: '#567279',
+  primary: '#0b7285',
+  primarySoft: '#d8edf2',
+  border: '#cfe0e5',
+};
 
 const toDisplayTime = (value) => {
   if (!value) {
@@ -62,6 +71,16 @@ const getStatusVisual = (status, colors) => {
       textColor: '#156e22',
       bgColor: '#dbf4de',
       borderColor: '#badcc0',
+    };
+  }
+
+  if (status === 'archived') {
+    return {
+      label: 'ARCHIVED',
+      icon: 'archive-outline',
+      textColor: '#6b7280',
+      bgColor: '#f3f4f6',
+      borderColor: '#d1d5db',
     };
   }
 
@@ -118,7 +137,7 @@ const OptionCard = ({ iconName, title, subtitle, onPress, colors, disabled = fal
 const ItemDetailScreen = ({ route, navigation }) => {
   const initial = route.params?.item || {};
   const { user } = useAuth();
-  const { colors, isDark } = useAppTheme();
+  const colors = THEME_COLORS;
   const {
     markRecovered,
     flagReport,
@@ -210,12 +229,6 @@ const ItemDetailScreen = ({ route, navigation }) => {
       label: 'Category',
       value: item?.category || 'N/A',
       icon: 'tag-outline',
-    },
-    {
-      key: 'campus',
-      label: 'Campus',
-      value: item?.campus || 'N/A',
-      icon: 'school-outline',
     },
     {
       key: 'location',
@@ -340,7 +353,7 @@ const ItemDetailScreen = ({ route, navigation }) => {
   const onShare = async () => {
     try {
       await Share.share({
-        message: `${item.title || 'Lost/Found Item'}\n${item.description || ''}\nCampus: ${item.campus || 'N/A'}\nLocation: ${item.locationText || 'N/A'}`,
+        message: `${item.title || 'Lost/Found Item'}\n${item.description || ''}\nLocation: ${item.locationText || 'N/A'}`,
         title: item.title || 'Lost/Found Item',
       });
     } catch (error) {
@@ -541,7 +554,7 @@ const ItemDetailScreen = ({ route, navigation }) => {
               onChangeText={setFlagReason}
               placeholder="Reason for flagging"
               placeholderTextColor={colors.textMuted}
-              keyboardAppearance={isDark ? 'dark' : 'light'}
+              keyboardAppearance="light"
             />
 
             <OptionCard

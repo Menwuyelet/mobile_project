@@ -37,6 +37,11 @@ const parseLocation = (location) => {
 const buildListQuery = (query) => {
   const filter = {};
 
+  // By default, exclude archived items unless explicitly requested
+  if (query.includeArchived !== 'true') {
+    filter.archivedAt = { $exists: false };
+  }
+
   if (query.status && ALLOWED_STATUSES.includes(query.status)) {
     filter.status = query.status;
   }

@@ -4,7 +4,6 @@ import {
   Alert,
   Image,
   KeyboardAvoidingView,
-  Linking,
   Platform,
   Pressable,
   SafeAreaView,
@@ -18,11 +17,9 @@ import { useItems } from '../context/ItemsContext';
 import { useAuth } from '../context/AuthContext';
 import AppIcon from '../components/AppIcon';
 import { imageService } from '../services/imageService';
-import { locationService } from '../services/locationService';
 import { permissionsService } from '../services/permissionsService';
 import { storageService } from '../services/storageService';
-import { DEFAULT_CAMPUS } from '../config/env';
-import { CAMPUSES, CATEGORIES } from '../utils/constants';
+import { CATEGORIES } from '../utils/constants';
 import { generateItemImageUrl } from '../utils/imageFallback';
 import { validateReport } from '../utils/validators';
 
@@ -32,10 +29,8 @@ const defaultForm = {
   description: '',
   category: 'Other',
   otherItemName: '',
-  campus: DEFAULT_CAMPUS,
   locationText: '',
   imageUrl: '',
-  location: null,
   lastSeenHint: '',
 };
 
@@ -50,35 +45,35 @@ const TEMPLATE_PRESETS = [
     key: 'phone',
     label: 'Phone',
     category: 'Electronics',
-    title: '{{status}} phone near {{campus}}',
+    title: '{{status}} phone near {{area}}',
     description: 'Brand/model:\nColor:\nUnique marks:\nExact place:\nOwner proof or contact:',
   },
   {
     key: 'id',
     label: 'ID Card',
     category: 'ID',
-    title: '{{status}} ID card at {{campus}}',
+    title: '{{status}} ID card in {{area}}',
     description: 'Name initials visible:\nInstitute/faculty:\nCard color:\nWhere found/lost:\nHow to claim:',
   },
   {
     key: 'bag',
     label: 'Bag',
     category: 'Accessories',
-    title: '{{status}} bag near {{campus}}',
+    title: '{{status}} bag near {{area}}',
     description: 'Bag color/type:\nBrand/logo:\nItems inside:\nExact place/time:\nSafe contact method:',
   },
   {
     key: 'keys',
     label: 'Keys',
     category: 'Accessories',
-    title: '{{status}} keys around {{campus}}',
+    title: '{{status}} keys around {{area}}',
     description: 'Keychain color:\nHow many keys:\nSpecial marks:\nLast known location:\nPickup details:',
   },
   {
     key: 'laptop',
     label: 'Laptop',
     category: 'Electronics',
-    title: '{{status}} laptop at {{campus}}',
+    title: '{{status}} laptop in {{area}}',
     description: 'Brand/model:\nColor:\nSticker or case:\nLast seen time/location:\nOwnership proof:',
   },
 ];
@@ -192,17 +187,12 @@ const ReportItemScreen = () => {
 
   const qualityChecks = useMemo(() => {
     const hasLocationText = form.locationText.trim().length >= 3;
-    const hasGps = Boolean(
-      form.location &&
-      Number.isFinite(Number(form.location.latitude)) &&
-      Number.isFinite(Number(form.location.longitude))
-    );
 
     const checks = [
       { label: 'Specific title', passed: resolvedTitle.length >= 8 },
       { label: 'Detailed description', passed: form.description.trim().length >= 25 },
       { label: 'Category selected', passed: Boolean(form.category) },
-      { label: 'Location added', passed: hasLocationText || hasGps },
+      { label: 'Location added', passed: hasLocationText },
       { label: 'Last-seen time added', passed: Boolean(form.lastSeenHint) },
       { label: 'Photo attached', passed: Boolean(form.imageUrl) },
     ];
@@ -224,9 +214,6 @@ const ReportItemScreen = () => {
     const candidates = items
       .map((entry) => {
         let score = 0;
-        if ((entry?.campus || '').toLowerCase() === (form.campus || '').toLowerCase()) {
-          score += 2;
-        }
         if ((entry?.category || '').toLowerCase() === (form.category || '').toLowerCase()) {
           score += 2;
         }
@@ -255,7 +242,7 @@ const ReportItemScreen = () => {
       .map((candidate) => candidate.entry);
 
     return candidates;
-  }, [form.campus, form.category, form.status, items, resolvedTitle]);
+  }, [form.category, form.status, items, resolvedTitle]);
 
   const updateForm = (nextPatch) => {
     setForm((prev) => ({ ...prev, ...nextPatch }));
@@ -323,10 +310,10 @@ const ReportItemScreen = () => {
   const applyTemplate = (template) => {
     setForm((prev) => {
       const statusWord = prev.status === 'lost' ? 'Lost' : 'Found';
-      const campus = prev.campus || DEFAULT_CAMPUS;
+      const area = prev.locationText.trim() || 'the area';
       const templateTitle = template.title
         .replace('{{status}}', statusWord)
-        .replace('{{campus}}', campus);
+        .replace('{{area}}', area);
       const nextDescription = prev.description.trim()
         ? `${prev.description.trim()}\n\n${template.description}`
         : template.description;
@@ -337,7 +324,7 @@ const ReportItemScreen = () => {
         otherItemName: '',
         title: prev.title.trim() ? prev.title : templateTitle,
         description: nextDescription,
-        locationText: prev.locationText || `Near ${campus}`,
+        locationText: prev.locationText || 'Near main gate',
         lastSeenHint: prev.lastSeenHint || 'Today',
       };
     });
@@ -381,50 +368,6 @@ const ReportItemScreen = () => {
     }
   };
 
-  const attachLocation = async () => {
-    setBusyAction('addLocation');
-    try {
-      const allowed = await permissionsService.requestLocationPermission();
-      if (!allowed) {
-        Alert.alert('Permission', 'Location permission is required to tag where the item was lost/found.');
-        return;
-      }
-
-      try {
-        const current = await locationService.getCurrentPosition();
-        setForm((prev) => ({
-          ...prev,
-          location: current,
-          locationText: prev.locationText || `Near ${prev.campus}`,
-        }));
-      } catch (error) {
-        Alert.alert(
-          'Location error',
-          error?.message || 'Could not access GPS. Please enable location permission.'
-        );
-      }
-    } finally {
-      setBusyAction('');
-    }
-  };
-
-  const openLocationInMaps = async () => {
-    if (!form.location) {
-      return;
-    }
-
-    const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${form.location.latitude},${form.location.longitude}`;
-    try {
-      const supported = await Linking.canOpenURL(mapsUrl);
-      if (!supported) {
-        Alert.alert('Maps', 'Could not open maps on this device.');
-        return;
-      }
-      await Linking.openURL(mapsUrl);
-    } catch (error) {
-      Alert.alert('Maps', error?.message || 'Could not open maps right now.');
-    }
-  };
 
   const clearDraft = async () => {
     Alert.alert('Clear Draft', 'Remove all report fields and reset the form?', [
@@ -485,7 +428,6 @@ const ReportItemScreen = () => {
       ...form,
       title: computedTitle,
       description: decoratedDescription,
-      campus: form.campus.trim(),
       category: form.category.trim(),
       locationText: form.locationText.trim(),
     };
@@ -651,17 +593,6 @@ const ReportItemScreen = () => {
             </>
           )}
 
-          <Text style={styles.sectionLabel}>Campus</Text>
-          <View style={styles.chipsWrap}>
-            {CAMPUSES.map((campus) => (
-              <Chip
-                key={campus}
-                label={campus}
-                selected={form.campus === campus}
-                onPress={() => updateForm({ campus })}
-              />
-            ))}
-          </View>
 
           <View style={styles.inputHeader}>
             <Text style={styles.sectionLabel}>Location Description</Text>
@@ -707,13 +638,6 @@ const ReportItemScreen = () => {
 
           <View style={styles.actionRow}>
             <ActionButton
-              label={form.location ? 'GPS Added' : 'Add GPS'}
-              iconName="crosshairs-gps"
-              loading={busyAction === 'addLocation'}
-              onPress={attachLocation}
-              disabled={isBusy && busyAction !== 'addLocation'}
-            />
-            <ActionButton
               label="Generate Image"
               iconName="palette-outline"
               loading={busyAction === 'generateImage'}
@@ -752,11 +676,11 @@ const ReportItemScreen = () => {
               />
             ) : (
               <ActionButton
-                label="Open in Maps"
-                iconName="map-search-outline"
+                label="Need Photo"
+                iconName="image-off-outline"
                 loading={false}
-                onPress={openLocationInMaps}
-                disabled={!form.location || isBusy}
+                onPress={() => undefined}
+                disabled
               />
             )}
           </View>
@@ -778,13 +702,10 @@ const ReportItemScreen = () => {
               </Text>
             ) : null}
             <Text style={styles.summaryLine}>
-              <AppIcon name="school-outline" size={13} color="#4d676d" /> Campus: {form.campus || 'Not selected'}
-            </Text>
-            <Text style={styles.summaryLine}>
               <AppIcon name="image-outline" size={13} color="#4d676d" /> Photo: {form.imageUrl ? 'Attached' : 'Not attached'}
             </Text>
             <Text style={styles.summaryLine}>
-              <AppIcon name="map-marker-outline" size={13} color="#4d676d" /> Location: {form.location || form.locationText.trim() ? 'Added' : 'Not added'}
+              <AppIcon name="map-marker-outline" size={13} color="#4d676d" /> Location: {form.locationText.trim() ? 'Added' : 'Not added'}
             </Text>
             <Text style={styles.summaryLine}>
               <AppIcon name="clock-time-four-outline" size={13} color="#4d676d" /> Last seen: {form.lastSeenHint || 'Not selected'}
@@ -804,7 +725,7 @@ const ReportItemScreen = () => {
                 <View key={entry._id} style={styles.similarRow}>
                   <Text style={styles.similarRowTitle} numberOfLines={1}>{entry.title || 'Untitled report'}</Text>
                   <Text style={styles.similarRowMeta} numberOfLines={1}>
-                    {(entry.status || 'unknown').toUpperCase()} | {entry.category || 'Other'} | {entry.campus || 'Campus'}
+                    {(entry.status || 'unknown').toUpperCase()} | {entry.category || 'Other'}
                   </Text>
                 </View>
               ))}
@@ -816,11 +737,6 @@ const ReportItemScreen = () => {
               <Text style={styles.previewTitle}>Photo Preview</Text>
               <Image source={{ uri: form.imageUrl }} style={styles.previewImage} resizeMode="cover" />
             </View>
-          )}
-          {Boolean(form.location) && (
-            <Text style={styles.meta}>
-              Coordinates: {form.location.latitude?.toFixed(5)}, {form.location.longitude?.toFixed(5)}
-            </Text>
           )}
 
           <Pressable

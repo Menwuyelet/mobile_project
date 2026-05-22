@@ -20,20 +20,12 @@ export const validateReport = (report) => {
     return 'Please select a category.';
   }
 
-  if (!report.campus) {
-    return 'Please select a campus.';
-  }
 
   const hasLocationText =
     typeof report.locationText === 'string' &&
     report.locationText.trim().length >= REPORT_VALIDATION_RULES.LOCATION_MIN;
-  const hasGpsLocation =
-    report.location &&
-    Number.isFinite(Number(report.location.latitude)) &&
-    Number.isFinite(Number(report.location.longitude));
-
-  if (!hasLocationText && !hasGpsLocation) {
-    return 'Add location details (text or GPS) to improve report quality.';
+  if (!hasLocationText) {
+    return 'Add location details to improve report quality.';
   }
 
   if (!report.status) {
