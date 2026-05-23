@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const bcrypt = require('bcryptjs');
 const Item = require('../models/Item');
 const User = require('../models/User');
 const Notification = require('../models/Notification');
@@ -10,6 +11,20 @@ const ALLOWED_CREATE_STATUSES = ['lost', 'found'];
 const trimString = (value = '') => (typeof value === 'string' ? value.trim() : '');
 
 const escapeRegExp = (input = '') => input.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+const sanitizeSecrets = (rawQuestions) => {
+  if (!Array.isArray(rawQuestions)) {
+    return [];
+  }
+
+  return rawQuestions
+    .map((entry) => ({
+      question: trimString(entry?.question),
+      answer: trimString(entry?.answer).toLowerCase(),
+    }))
+    .filter((entry) => entry.question && entry.answer)
+    .slice(0, 5);
+};
 
 const parseLocation = (location) => {
   if (!location || typeof location !== 'object') {
@@ -141,6 +156,7 @@ const createItem = async (req, res, next) => {
     const locationText = trimString(req.body.locationText);
     const imageUrl = trimString(req.body.imageUrl);
     const location = parseLocation(req.body.location);
+    const safeQuestions = sanitizeSecrets(req.body.secretQuestions);
 
     if (!ALLOWED_CREATE_STATUSES.includes(status)) {
       return res.status(400).json({ message: 'Status must be either lost or found.' });
@@ -157,6 +173,16 @@ const createItem = async (req, res, next) => {
     if (!category || !campus) {
       return res.status(400).json({ message: 'Category and campus are required.' });
     }
+    if (status === 'found' && !safeQuestions.length) {
+      return res.status(400).json({ message: 'At least one secret question is required for found items.' });
+    }
+
+    const secretQuestions = await Promise.all(
+      safeQuestions.map(async (entry) => ({
+        question: entry.question,
+        answerHash: await bcrypt.hash(entry.answer, 10),
+      }))
+    );
 
     const created = await Item.create({
       status,
@@ -167,6 +193,7 @@ const createItem = async (req, res, next) => {
       locationText,
       location,
       imageUrl,
+      secretQuestions,
       reportedBy: req.user._id,
     });
 
@@ -217,12 +244,237 @@ const getItemById = async (req, res, next) => {
       return res.status(400).json({ message: 'Invalid item id.' });
     }
 
-    const item = await Item.findById(id).populate('reportedBy', '_id name email campus role');
+    const item = await Item.findById(id)
+      .populate('reportedBy', '_id name email campus role phoneNumber')
+      .populate('claim.requester', '_id name email campus');
     if (!item) {
       return res.status(404).json({ message: 'Item not found.' });
     }
 
     return res.json({ item });
+  } catch (error) {
+    return next(error);
+  }
+};
+
+const updateItem = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const item = await Item.findById(id);
+    if (!item) {
+      return res.status(404).json({ message: 'Item not found.' });
+    }
+
+    if (item.reportedBy.toString() !== req.user._id.toString() && req.user.role !== 'admin') {
+      return res.status(403).json({ message: 'Not allowed to edit this item.' });
+    }
+
+    const nextTitle = trimString(req.body.title);
+    const nextDescription = trimString(req.body.description);
+    const nextCategory = trimString(req.body.category);
+    const nextLocationText = trimString(req.body.locationText);
+    const nextImageUrl = trimString(req.body.imageUrl);
+    const nextLocation = req.body.location ? parseLocation(req.body.location) : item.location;
+    const requestedStatus = trimString(req.body.status).toLowerCase();
+
+    if (nextTitle) {
+      if (nextTitle.length < 3) {
+        return res.status(400).json({ message: 'Title must be at least 3 characters.' });
+      }
+      item.title = nextTitle;
+    }
+    if (nextDescription) {
+      if (nextDescription.length < 10) {
+        return res.status(400).json({ message: 'Description must be at least 10 characters.' });
+      }
+      item.description = nextDescription;
+    }
+    if (nextCategory) {
+      item.category = nextCategory;
+    }
+    if (nextLocationText || req.body.locationText === '') {
+      item.locationText = nextLocationText;
+    }
+    if (nextImageUrl || req.body.imageUrl === '') {
+      item.imageUrl = nextImageUrl;
+    }
+    if (nextLocation) {
+      item.location = nextLocation;
+    }
+    if (requestedStatus && ALLOWED_STATUSES.includes(requestedStatus)) {
+      item.status = requestedStatus;
+      if (requestedStatus === 'recovered' && !item.recoveredAt) {
+        item.recoveredAt = new Date();
+      }
+    }
+
+    if (Array.isArray(req.body.secretQuestions)) {
+      const safeQuestions = sanitizeSecrets(req.body.secretQuestions);
+      const hashedQuestions = await Promise.all(
+        safeQuestions.map(async (entry) => ({
+          question: entry.question,
+          answerHash: await bcrypt.hash(entry.answer, 10),
+        }))
+      );
+      item.secretQuestions = hashedQuestions;
+    }
+
+    await item.save();
+    const updated = await Item.findById(item._id)
+      .populate('reportedBy', '_id name email campus role phoneNumber')
+      .populate('claim.requester', '_id name email campus');
+    return res.json({ item: updated });
+  } catch (error) {
+    return next(error);
+  }
+};
+
+const requestClaim = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const item = await Item.findById(id);
+    if (!item) {
+      return res.status(404).json({ message: 'Item not found.' });
+    }
+
+    if (item.status !== 'found') {
+      return res.status(400).json({ message: 'Only found items can be claimed.' });
+    }
+    if (item.reportedBy.toString() === req.user._id.toString()) {
+      return res.status(400).json({ message: 'You cannot claim your own post.' });
+    }
+    if (!Array.isArray(item.secretQuestions) || !item.secretQuestions.length) {
+      return res.status(400).json({ message: 'This item has no secret questions for claiming.' });
+    }
+    if (item.claim?.status === 'pending') {
+      return res.status(400).json({ message: 'This item already has a pending claim.' });
+    }
+
+    const answers = Array.isArray(req.body.answers) ? req.body.answers.map((entry) => trimString(entry).toLowerCase()) : [];
+    if (answers.length !== item.secretQuestions.length || answers.some((entry) => !entry)) {
+      return res.status(400).json({ message: 'Please answer all secret questions.' });
+    }
+
+    let autoMatched = true;
+    for (let i = 0; i < item.secretQuestions.length; i += 1) {
+      const ok = await bcrypt.compare(answers[i], item.secretQuestions[i].answerHash);
+      if (!ok) {
+        autoMatched = false;
+      }
+    }
+
+    item.claim = {
+      status: 'pending',
+      requester: req.user._id,
+      answers,
+      note: trimString(req.body.note),
+      autoMatched,
+      requestedAt: new Date(),
+      reviewedAt: null,
+      reviewedBy: null,
+      reviewNote: '',
+    };
+    await item.save();
+
+    await Notification.create({
+      userId: item.reportedBy,
+      type: 'system',
+      title: 'New claim request',
+      body: `${req.user.name || 'A user'} submitted \"This is Mine!\" for your found item.`,
+      meta: { itemId: item._id, claimStatus: 'pending' },
+    });
+
+    return res.json({
+      claim: {
+        status: item.claim.status,
+        requester: item.claim.requester,
+        autoMatched: item.claim.autoMatched,
+        requestedAt: item.claim.requestedAt,
+      },
+    });
+  } catch (error) {
+    return next(error);
+  }
+};
+
+const reviewClaim = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const action = trimString(req.body.action).toLowerCase();
+    const note = trimString(req.body.note);
+    if (!['approve', 'decline'].includes(action)) {
+      return res.status(400).json({ message: 'Action must be approve or decline.' });
+    }
+
+    const item = await Item.findById(id);
+    if (!item) {
+      return res.status(404).json({ message: 'Item not found.' });
+    }
+
+    if (item.reportedBy.toString() !== req.user._id.toString() && req.user.role !== 'admin') {
+      return res.status(403).json({ message: 'Only finder or admin can review claims.' });
+    }
+    if (!item.claim?.requester || item.claim.status !== 'pending') {
+      return res.status(400).json({ message: 'No pending claim for this item.' });
+    }
+
+    item.claim.status = action === 'approve' ? 'approved' : 'declined';
+    item.claim.reviewedAt = new Date();
+    item.claim.reviewedBy = req.user._id;
+    item.claim.reviewNote = note;
+
+    if (action === 'approve') {
+      item.status = 'recovered';
+      item.recoveredAt = new Date();
+    }
+
+    const requesterId = item.claim.requester;
+    await item.save();
+
+    await Notification.create({
+      userId: requesterId,
+      type: 'system',
+      title: action === 'approve' ? 'Claim approved' : 'Claim declined',
+      body:
+        action === 'approve'
+          ? 'Your claim was approved. You can now reveal owner contact details.'
+          : 'Your claim was declined by the finder.',
+      meta: { itemId: item._id, claimStatus: item.claim.status },
+    });
+
+    const updated = await Item.findById(item._id)
+      .populate('reportedBy', '_id name email campus role phoneNumber')
+      .populate('claim.requester', '_id name email campus');
+    return res.json({ item: updated });
+  } catch (error) {
+    return next(error);
+  }
+};
+
+const getClaimContact = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const item = await Item.findById(id).populate('reportedBy', '_id name phoneNumber');
+    if (!item) {
+      return res.status(404).json({ message: 'Item not found.' });
+    }
+    if (item.claim?.status !== 'approved' || !item.claim?.requester) {
+      return res.status(400).json({ message: 'No approved claim contact available.' });
+    }
+
+    const isRequester = item.claim.requester.toString() === req.user._id.toString();
+    const isOwner = item.reportedBy?._id?.toString() === req.user._id.toString();
+    const isAdmin = req.user.role === 'admin';
+    if (!isRequester && !isOwner && !isAdmin) {
+      return res.status(403).json({ message: 'Not allowed to access contact details.' });
+    }
+
+    return res.json({
+      contact: {
+        name: item.reportedBy?.name || 'Owner',
+        phoneNumber: item.reportedBy?.phoneNumber || '',
+      },
+    });
   } catch (error) {
     return next(error);
   }
@@ -375,6 +627,9 @@ const deleteItem = async (req, res, next) => {
     if (!item) {
       return res.status(404).json({ message: 'Item not found.' });
     }
+    if (item.reportedBy.toString() !== req.user._id.toString() && req.user.role !== 'admin') {
+      return res.status(403).json({ message: 'Not allowed to delete this item.' });
+    }
 
     await item.deleteOne();
     return res.json({ message: 'Item deleted successfully.' });
@@ -423,31 +678,49 @@ const getAdminStats = async (_req, res, next) => {
 
     const [
       totalUsers,
+      suspendedUsers,
       totalReports,
       lostReports,
       foundReports,
       recoveredReports,
       flaggedReports,
       todayReports,
+      pendingClaims,
+      approvedClaims,
+      topLostCategory,
     ] = await Promise.all([
       User.countDocuments(),
+      User.countDocuments({ isSuspended: true }),
       Item.countDocuments(),
       Item.countDocuments({ status: 'lost' }),
       Item.countDocuments({ status: 'found' }),
       Item.countDocuments({ status: 'recovered' }),
       Item.countDocuments({ flagged: true }),
       Item.countDocuments({ createdAt: { $gte: todayStart } }),
+      Item.countDocuments({ 'claim.status': 'pending' }),
+      Item.countDocuments({ 'claim.status': 'approved' }),
+      Item.aggregate([
+        { $match: { status: 'lost' } },
+        { $group: { _id: '$category', count: { $sum: 1 } } },
+        { $sort: { count: -1 } },
+        { $limit: 1 },
+      ]),
     ]);
 
     return res.json({
       stats: {
         totalUsers,
+        suspendedUsers,
         totalReports,
         lostReports,
         foundReports,
         recoveredReports,
         flaggedReports,
         todayReports,
+        pendingClaims,
+        approvedClaims,
+        mostLostCategory: topLostCategory?.[0]?._id || 'N/A',
+        mostLostCategoryCount: topLostCategory?.[0]?.count || 0,
       },
     });
   } catch (error) {
@@ -459,6 +732,10 @@ module.exports = {
   createItem,
   listItems,
   getItemById,
+  updateItem,
+  requestClaim,
+  reviewClaim,
+  getClaimContact,
   markRecovered,
   flagItem,
   getFlaggedItems,

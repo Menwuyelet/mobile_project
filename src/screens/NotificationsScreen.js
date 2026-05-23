@@ -13,22 +13,46 @@ import EmptyState from '../components/EmptyState';
 import AppIcon from '../components/AppIcon';
 import { notificationService } from '../services/notificationService';
 
+const C = {
+  blue: '#1a6edb',
+  white: '#ffffff',
+  bg: '#f5f7fb',
+  card: '#ffffff',
+  border: '#e5e7eb',
+  text: '#111827',
+  muted: '#6b7280',
+};
+
 const NotificationCard = ({ item, onPress }) => {
   const unread = !item.readAt;
 
   return (
-    <Pressable style={[styles.card, unread && styles.unreadCard]} onPress={onPress}>
+    <Pressable 
+      style={[styles.card, unread && styles.unreadCard]} 
+      onPress={onPress}
+    >
       <View style={styles.cardHeader}>
-        <View style={styles.cardTitleRow}>
-          <AppIcon name={unread ? 'bell-alert-outline' : 'bell-check-outline'} size={14} color={unread ? '#0b7285' : '#5f7a80'} />
-          <Text style={styles.cardTitle}>{item.title}</Text>
+        <View style={styles.iconContainer}>
+          <AppIcon 
+            name={unread ? 'bell-alert-outline' : 'bell-check-outline'} 
+            size={22} 
+            color={unread ? C.blue : C.muted} 
+          />
         </View>
-        {unread && <Text style={styles.unreadBadge}>NEW</Text>}
+
+        <View style={styles.content}>
+          <Text style={styles.title} numberOfLines={1}>{item.title}</Text>
+          <Text style={styles.body} numberOfLines={2}>{item.body}</Text>
+        </View>
+
+        {unread && <View style={styles.unreadDot} />}
       </View>
-      <Text style={styles.cardBody}>{item.body}</Text>
+
       <View style={styles.metaRow}>
-        <AppIcon name="clock-time-four-outline" size={12} color="#789097" />
-        <Text style={styles.meta}>{new Date(item.createdAt).toLocaleString()}</Text>
+        <AppIcon name="clock-outline" size={14} color={C.muted} />
+        <Text style={styles.meta}>
+          {new Date(item.createdAt).toLocaleString()}
+        </Text>
       </View>
     </Pressable>
   );
@@ -61,7 +85,6 @@ const NotificationsScreen = ({ navigation }) => {
       if (!notification.readAt) {
         await notificationService.markRead(notification._id);
       }
-
       await load();
 
       if (notification?.meta?.itemId) {
@@ -83,40 +106,43 @@ const NotificationsScreen = ({ navigation }) => {
 
   return (
     <SafeAreaView style={styles.root}>
+      {/* Header */}
       <View style={styles.header}>
-        <View>
-          <View style={styles.titleRow}>
-            <AppIcon name="bell-badge-outline" size={20} color="#12343b" />
-            <Text style={styles.title}>Alerts</Text>
-          </View>
-          <View style={styles.subtitleRow}>
-            <AppIcon name="bell-ring-outline" size={16} color="#5f7a80" />
-            <Text style={styles.subtitle}>{unreadCount} unread notification(s)</Text>
+        <View style={styles.headerLeft}>
+          <AppIcon name="bell-badge-outline" size={26} color={C.text} />
+          <View>
+            <Text style={styles.headerTitle}>Alerts</Text>
+            <Text style={styles.headerSubtitle}>
+              {unreadCount} unread notification{unreadCount !== 1 ? 's' : ''}
+            </Text>
           </View>
         </View>
-        <Pressable style={styles.markButton} onPress={markAllRead}>
-          <View style={styles.markButtonInner}>
-            <AppIcon name="email-check-outline" size={13} color="#ffffff" />
-            <Text style={styles.markButtonText}>Mark all read</Text>
-          </View>
-        </Pressable>
+
+        {unreadCount > 0 && (
+          <Pressable style={styles.markAllButton} onPress={markAllRead}>
+            <AppIcon name="email-check-outline" size={16} color="#fff" />
+            <Text style={styles.markAllText}>Mark all read</Text>
+          </Pressable>
+        )}
       </View>
 
       <FlatList
         data={notifications}
         keyExtractor={(item) => item._id}
         keyboardShouldPersistTaps="handled"
-        initialNumToRender={8}
-        maxToRenderPerBatch={8}
+        initialNumToRender={10}
+        maxToRenderPerBatch={10}
         windowSize={5}
-        renderItem={({ item }) => <NotificationCard item={item} onPress={() => openNotification(item)} />}
-        contentContainerStyle={{ padding: 12, paddingBottom: 24 }}
-        refreshControl={<RefreshControl refreshing={loading} onRefresh={load} />}
+        renderItem={({ item }) => (
+          <NotificationCard item={item} onPress={() => openNotification(item)} />
+        )}
+        contentContainerStyle={styles.listContent}
+        refreshControl={<RefreshControl refreshing={loading} onRefresh={load} tintColor={C.blue} />}
         ListEmptyComponent={
           <EmptyState
-            iconName="email-outline"
+            iconName="bell-outline"
             title="No Alerts Yet"
-            message="Match and chat notifications will appear here."
+            message="Important updates, matches, and messages will appear here."
           />
         }
       />
@@ -125,54 +151,80 @@ const NotificationsScreen = ({ navigation }) => {
 };
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: '#f6fafb' },
+  root: { flex: 1, backgroundColor: C.bg },
+
   header: {
-    paddingHorizontal: 14,
-    paddingTop: 12,
-    paddingBottom: 6,
+    backgroundColor: C.white,
+    paddingHorizontal: 16,
+    paddingVertical: 16,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    borderBottomWidth: 1,
+    borderBottomColor: C.border,
   },
-  titleRow: { flexDirection: 'row', alignItems: 'center', gap: 7 },
-  title: { fontSize: 22, fontWeight: '800', color: '#12343b' },
-  subtitleRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 2 },
-  subtitle: { color: '#5f7a80' },
-  markButton: {
-    backgroundColor: '#0b7285',
-    paddingHorizontal: 10,
+  headerLeft: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  headerTitle: { fontSize: 20, fontWeight: '700', color: C.text },
+  headerSubtitle: { fontSize: 13, color: C.muted, marginTop: 2 },
+
+  markAllButton: {
+    backgroundColor: C.blue,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 14,
     paddingVertical: 8,
-    borderRadius: 8,
-  },
-  markButtonInner: { flexDirection: 'row', alignItems: 'center', gap: 5 },
-  markButtonText: { color: '#fff', fontWeight: '700', fontSize: 12 },
-  card: {
-    backgroundColor: '#fff',
-    borderWidth: 1,
-    borderColor: '#d8e4e7',
     borderRadius: 10,
-    padding: 12,
-    marginBottom: 8,
+  },
+  markAllText: { color: '#fff', fontWeight: '600', fontSize: 13 },
+
+  listContent: { padding: 12, paddingBottom: 30 },
+
+  card: {
+    backgroundColor: C.card,
+    borderRadius: 14,
+    padding: 14,
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: C.border,
   },
   unreadCard: {
-    borderColor: '#86b8c2',
-    backgroundColor: '#f1fbfd',
+    borderLeftWidth: 4,
+    borderLeftColor: C.blue,
+    backgroundColor: '#f8fbff',
   },
-  cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  cardTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1, paddingRight: 8 },
-  cardTitle: { fontWeight: '700', color: '#1d3438', flexShrink: 1, paddingRight: 8 },
-  unreadBadge: {
-    fontSize: 10,
-    fontWeight: '700',
-    backgroundColor: '#0b7285',
-    color: '#fff',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 999,
+  cardHeader: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 12,
   },
-  cardBody: { color: '#4f666b', marginTop: 6 },
-  metaRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 8 },
-  meta: { color: '#789097', fontSize: 12 },
+  iconContainer: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    backgroundColor: '#f1f5f9',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  content: { flex: 1 },
+  title: { fontSize: 15, fontWeight: '600', color: C.text, marginBottom: 4 },
+  body: { fontSize: 13, color: C.muted, lineHeight: 18 },
+
+  metaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 10,
+  },
+  meta: { fontSize: 12, color: C.muted },
+
+  unreadDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: C.blue,
+    marginTop: 4,
+  },
 });
 
 export default NotificationsScreen;

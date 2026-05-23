@@ -1,12 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import {
-  Alert,
-  FlatList,
-  RefreshControl,
-  SafeAreaView,
-  StyleSheet,
-  Text,
-  View,
+  Alert, FlatList, RefreshControl,
+  SafeAreaView, StyleSheet, Text, View,
 } from 'react-native';
 import FilterBar from '../components/FilterBar';
 import EmptyState from '../components/EmptyState';
@@ -14,88 +9,168 @@ import ItemCard from '../components/ItemCard';
 import AppIcon from '../components/AppIcon';
 import { useItems } from '../context/ItemsContext';
 
-const defaultFilters = { keyword: '', status: '', category: '' };
+const C = {
+  blue:     '#1a6edb',
+  blueSoft: '#eff6ff',
+  white:    '#ffffff',
+  bg:       '#f5f7fb',
+  card:     '#ffffff',
+  border:   '#e5e7eb',
+  text:     '#111827',
+  muted:    '#6b7280',
+};
+
+const DEFAULT_FILTERS = { keyword: '', status: '', category: '' };
 
 const SearchScreen = ({ navigation }) => {
   const { searchReports } = useItems();
 
-  const [filters, setFilters] = useState(defaultFilters);
+  const [filters, setFilters] = useState(DEFAULT_FILTERS);
   const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(false);
 
-  const runSearch = useCallback(
-    async (currentFilters) => {
-      setLoading(true);
-      try {
-        const found = await searchReports(currentFilters);
-        setResults(found);
-      } catch (error) {
-        Alert.alert('Search failed', error?.response?.data?.message || 'Please try again.');
-      } finally {
-        setLoading(false);
-      }
-    },
-    [searchReports]
-  );
+  const runSearch = useCallback(async (f) => {
+    setLoading(true);
+    try {
+      const found = await searchReports(f);
+      setResults(found || []);
+    } catch (e) {
+      Alert.alert('Search failed', e?.response?.data?.message || 'Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  }, [searchReports]);
 
   useEffect(() => {
-    runSearch(defaultFilters);
+    runSearch(DEFAULT_FILTERS);
   }, [runSearch]);
 
   const onSearch = () => runSearch(filters);
-
   const onReset = () => {
-    setFilters(defaultFilters);
-    runSearch(defaultFilters);
+    setFilters(DEFAULT_FILTERS);
+    runSearch(DEFAULT_FILTERS);
   };
+
+  const listHeader = (
+    <View>
+      {/* Blue Header */}
+      <View style={styles.header}>
+        <View style={styles.headerLeft}>
+          <AppIcon name="magnify" size={24} color={C.white} />
+          <View>
+            <Text style={styles.headerTitle}>Search Items</Text>
+            <Text style={styles.headerSub}>Find lost or found reports</Text>
+          </View>
+        </View>
+
+        <View style={styles.countBadge}>
+          <Text style={styles.countTxt}>{results.length}</Text>
+          <Text style={styles.countLabel}>RESULTS</Text>
+        </View>
+      </View>
+
+      {/* Filter Bar */}
+      <View style={styles.filterContainer}>
+        <FilterBar
+          filters={filters}
+          onChange={setFilters}
+          onSearch={onSearch}
+          onReset={onReset}
+          loading={loading}
+        />
+      </View>
+
+      {/* Results Header */}
+      {results.length > 0 && (
+        <View style={styles.resultsHeader}>
+          <Text style={styles.resultsTitle}>
+            {results.length} report{results.length !== 1 ? 's' : ''} found
+          </Text>
+        </View>
+      )}
+    </View>
+  );
 
   return (
     <SafeAreaView style={styles.root}>
-      <View style={styles.content}>
-        <View style={styles.titleRow}>
-          <AppIcon name="database-search-outline" size={20} color="#12343b" />
-          <Text style={styles.title}>Search Items</Text>
-        </View>
-        <View style={styles.subtitleRow}>
-          <AppIcon name="magnify" size={16} color="#5d7a80" />
-          <Text style={styles.subtitle}>{results.length} result(s)</Text>
-        </View>
-        <FilterBar filters={filters} onChange={setFilters} onSearch={onSearch} onReset={onReset} />
-
-        <FlatList
-          data={results}
-          keyExtractor={(item) => item._id}
-          keyboardShouldPersistTaps="handled"
-          renderItem={({ item }) => (
-            <ItemCard item={item} onPress={() => navigation.navigate('ItemDetail', { item })} />
-          )}
-          initialNumToRender={8}
-          maxToRenderPerBatch={8}
-          windowSize={5}
-          ListEmptyComponent={
+      <FlatList
+        data={results}
+        keyExtractor={(item) => item?._id || item?.id || `${item?.title || 'report'}-${item?.createdAt || '0'}`}
+        keyboardShouldPersistTaps="handled"
+        initialNumToRender={8}
+        maxToRenderPerBatch={8}
+        windowSize={5}
+        ListHeaderComponent={listHeader}
+        contentContainerStyle={styles.listContent}
+        refreshControl={
+          <RefreshControl refreshing={loading} onRefresh={onSearch} tintColor={C.blue} />
+        }
+        renderItem={({ item }) => (
+          <ItemCard
+            item={item}
+            onPress={() => navigation.navigate('ItemDetail', { item })}
+          />
+        )}
+        ListEmptyComponent={
+          !loading && (
             <EmptyState
               iconName="compass-outline"
               title="No Results"
-              message="Try changing filters or keywords."
+              message="Try different keywords, status, or category."
               actionLabel="Reset Filters"
               onAction={onReset}
             />
-          }
-          contentContainerStyle={{ paddingBottom: 24 }}
-          refreshControl={<RefreshControl refreshing={loading} onRefresh={onSearch} />}
-        />
-      </View>
+          )
+        }
+      />
     </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: '#f6fafb' },
-  content: { flex: 1, padding: 14 },
-  titleRow: { flexDirection: 'row', alignItems: 'center', gap: 7 },
-  title: { fontSize: 20, fontWeight: '800', color: '#12343b' },
-  subtitleRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 10, marginTop: 2 },
-  subtitle: { color: '#5d7a80' },
+  root: { flex: 1, backgroundColor: C.bg },
+
+  listContent: { paddingHorizontal: 12, paddingBottom: 30 },
+
+  /* Header */
+  header: {
+    backgroundColor: C.blue,
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    paddingBottom: 20,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginHorizontal: -12,
+  },
+  headerLeft: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  headerTitle: { fontSize: 19, fontWeight: '700', color: C.white },
+  headerSub: { fontSize: 12, color: 'rgba(255,255,255,0.75)', marginTop: 2 },
+
+  countBadge: {
+    backgroundColor: 'rgba(255,255,255,0.25)',
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  countTxt: { fontSize: 22, fontWeight: '800', color: C.white },
+  countLabel: { fontSize: 10, fontWeight: '600', color: 'rgba(255,255,255,0.85)' },
+
+  filterContainer: { marginTop: -20, marginHorizontal: 12, marginBottom: 8 },
+
+  resultsHeader: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  resultsTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: C.text,
+  },
 });
 
 export default SearchScreen;

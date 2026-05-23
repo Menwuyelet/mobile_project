@@ -12,10 +12,18 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import LinearGradient from 'react-native-linear-gradient';
 import { useAuth } from '../context/AuthContext';
 import AppIcon from '../components/AppIcon';
 import { DEFAULT_CAMPUS } from '../config/env';
-import { isValidEmail } from '../utils/validators';
+import { validateRegistration } from '../utils/validators';
+
+const C = {
+  blue: '#1a6edb',
+  white: '#ffffff',
+  text: '#111827',
+  muted: '#6b7280',
+};
 
 const RegisterScreen = ({ navigation }) => {
   const { register } = useAuth();
@@ -23,27 +31,32 @@ const RegisterScreen = ({ navigation }) => {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
   const onSubmit = async () => {
-    if (!name.trim()) {
-      Alert.alert('Validation', 'Please enter your name.');
-      return;
-    }
+    const error = validateRegistration({
+      name,
+      email,
+      password,
+      confirmPassword,
+    });
 
-    if (!isValidEmail(email)) {
-      Alert.alert('Validation', 'Please enter a valid email.');
-      return;
-    }
-
-    if (password.length < 6) {
-      Alert.alert('Validation', 'Password should be at least 6 characters.');
-      return;
+    if (error) {
+      return Alert.alert('Validation', error);
     }
 
     setSubmitting(true);
     try {
-      await register({ name: name.trim(), email: email.trim(), password, campus: DEFAULT_CAMPUS });
+      await register({
+        name: name.trim(),
+        email: email.trim(),
+        password,
+        campus: DEFAULT_CAMPUS,
+      });
+      Alert.alert('Success', 'Account created successfully.');
+    } catch (_err) {
+      // AuthContext already shows a user-friendly error alert.
     } finally {
       setSubmitting(false);
     }
@@ -51,116 +64,192 @@ const RegisterScreen = ({ navigation }) => {
 
   return (
     <SafeAreaView style={styles.root}>
-      <KeyboardAvoidingView
-        style={styles.keyboardWrap}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      <LinearGradient
+        colors={['#1a6edb', '#0f4ca8', '#0a3a7f']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={styles.gradient}
       >
-        <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
-          <View style={styles.card}>
-            <Pressable
-              style={({ pressed }) => [styles.backButton, pressed && styles.backButtonPressed]}
-              onPress={() => navigation.goBack()}
-            >
-              <AppIcon name="chevron-left" size={14} color="#174651" />
-              <Text style={styles.backText}>Back</Text>
-            </Pressable>
-
-            <View style={styles.titleRow}>
-              <AppIcon name="account-plus-outline" size={22} color="#12343b" />
-              <Text style={styles.title}>Create Account</Text>
+        <KeyboardAvoidingView
+          style={styles.keyboardWrap}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        >
+          <ScrollView
+            contentContainerStyle={styles.scrollContent}
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
+          >
+            {/* Header */}
+            <View style={styles.header}>
+              <AppIcon name="account-plus-outline" size={42} color="#ffffff" />
+              <Text style={styles.appTitle}>Create Account</Text>
+              <Text style={styles.tagline}>Join the campus community</Text>
             </View>
 
-            <View style={styles.fieldLabelRow}>
-              <AppIcon name="account-outline" size={14} color="#355158" />
-              <Text style={styles.fieldLabel}>Full Name</Text>
-            </View>
-            <TextInput
-              style={styles.input}
-              placeholder="Full name"
-              placeholderTextColor="#6a7f86"
-              value={name}
-              onChangeText={setName}
-            />
-            <View style={styles.fieldLabelRow}>
-              <AppIcon name="email-outline" size={14} color="#355158" />
-              <Text style={styles.fieldLabel}>Email</Text>
-            </View>
-            <TextInput
-              style={styles.input}
-              placeholder="Email"
-              placeholderTextColor="#6a7f86"
-              keyboardType="email-address"
-              autoCapitalize="none"
-              value={email}
-              onChangeText={setEmail}
-              autoCorrect={false}
-            />
-            <View style={styles.fieldLabelRow}>
-              <AppIcon name="lock-outline" size={14} color="#355158" />
-              <Text style={styles.fieldLabel}>Password</Text>
-            </View>
-            <TextInput
-              style={styles.input}
-              placeholder="Password"
-              placeholderTextColor="#6a7f86"
-              secureTextEntry
-              value={password}
-              onChangeText={setPassword}
-            />
-
-            <Pressable style={[styles.button, submitting && styles.buttonDisabled]} onPress={onSubmit} disabled={submitting}>
-              {submitting ? (
-                <ActivityIndicator size="small" color="#ffffff" />
-              ) : (
-                <View style={styles.buttonInner}>
-                  <AppIcon name="account-check-outline" size={14} color="#ffffff" />
-                  <Text style={styles.buttonText}>Create Account</Text>
+            {/* Form Card */}
+            <View style={styles.card}>
+              {/* Name */}
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>Full Name</Text>
+                <View style={styles.inputWrapper}>
+                  <AppIcon name="account-outline" size={20} color={C.muted} />
+                  <TextInput
+                    style={styles.input}
+                    placeholder="Enter your full name"
+                    value={name}
+                    onChangeText={setName}
+                    editable={!submitting}
+                  />
                 </View>
-              )}
-            </Pressable>
-          </View>
-        </ScrollView>
-      </KeyboardAvoidingView>
+              </View>
+
+              {/* Email */}
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>Email Address</Text>
+                <View style={styles.inputWrapper}>
+                  <AppIcon name="email-outline" size={20} color={C.muted} />
+                  <TextInput
+                    style={styles.input}
+                    placeholder="you@example.com"
+                    keyboardType="email-address"
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                    value={email}
+                    onChangeText={setEmail}
+                    editable={!submitting}
+                  />
+                </View>
+              </View>
+
+              {/* Password */}
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>Password</Text>
+                <View style={styles.inputWrapper}>
+                  <AppIcon name="lock-outline" size={20} color={C.muted} />
+                  <TextInput
+                    style={styles.input}
+                    placeholder="Create a strong password"
+                    secureTextEntry
+                    value={password}
+                    onChangeText={setPassword}
+                    editable={!submitting}
+                  />
+                </View>
+              </View>
+
+              {/* Confirm Password */}
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>Confirm Password</Text>
+                <View style={styles.inputWrapper}>
+                  <AppIcon name="lock-check-outline" size={20} color={C.muted} />
+                  <TextInput
+                    style={styles.input}
+                    placeholder="Re-enter your password"
+                    secureTextEntry
+                    value={confirmPassword}
+                    onChangeText={setConfirmPassword}
+                    editable={!submitting}
+                  />
+                </View>
+              </View>
+
+              {/* Submit Button */}
+              <Pressable
+                style={[styles.registerButton, submitting && styles.buttonDisabled]}
+                onPress={onSubmit}
+                disabled={submitting}
+              >
+                <LinearGradient
+                  colors={['#1a6edb', '#0f4ca8']}
+                  style={styles.buttonGradient}
+                >
+                  {submitting ? (
+                    <ActivityIndicator color="#fff" />
+                  ) : (
+                    <View style={styles.buttonContent}>
+                      <AppIcon name="account-check-outline" size={18} color="#fff" />
+                      <Text style={styles.buttonText}>Create Account</Text>
+                    </View>
+                  )}
+                </LinearGradient>
+              </Pressable>
+
+              {/* Login Link */}
+              <Pressable
+                style={styles.loginLink}
+                onPress={() => navigation.goBack()}
+              >
+                <Text style={styles.loginLinkText}>
+                  Already have an account? <Text style={styles.loginHighlight}>Sign In</Text>
+                </Text>
+              </Pressable>
+            </View>
+          </ScrollView>
+        </KeyboardAvoidingView>
+      </LinearGradient>
     </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: '#eef5f8' },
+  root: { flex: 1 },
+  gradient: { flex: 1 },
   keyboardWrap: { flex: 1 },
-  scrollContent: { flexGrow: 1, justifyContent: 'center', padding: 16 },
-  card: { backgroundColor: '#fff', borderRadius: 14, padding: 18, borderWidth: 1, borderColor: '#e2edf0' },
-  titleRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 14 },
-  backButton: {
+  scrollContent: {
+    flexGrow: 1,
+    justifyContent: 'center',
+    padding: 20,
+  },
+
+  header: { alignItems: 'center', marginBottom: 32 },
+  appTitle: { fontSize: 28, fontWeight: '800', color: '#fff', marginTop: 12 },
+  tagline: { fontSize: 14, color: 'rgba(255,255,255,0.85)', marginTop: 4 },
+
+  card: {
+    backgroundColor: '#fff',
+    borderRadius: 20,
+    padding: 24,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.15,
+    shadowRadius: 20,
+    elevation: 12,
+  },
+
+  inputGroup: { marginBottom: 18 },
+  label: { fontSize: 13, fontWeight: '700', color: C.text, marginBottom: 6 },
+  inputWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
-    alignSelf: 'flex-start',
+    backgroundColor: '#f8fafc',
     borderWidth: 1,
-    borderColor: '#d3dee2',
-    borderRadius: 8,
-    paddingHorizontal: 10,
-    paddingVertical: 7,
-    marginBottom: 12,
-    backgroundColor: '#f8fbfc',
+    borderColor: '#e2e8f0',
+    borderRadius: 12,
+    paddingHorizontal: 14,
   },
-  backButtonPressed: { opacity: 0.7 },
-  backText: { color: '#174651', fontWeight: '700', fontSize: 13 },
-  title: { fontSize: 22, fontWeight: '800', color: '#12343b' },
-  fieldLabelRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 2, marginTop: 2 },
-  fieldLabel: { color: '#355158', fontSize: 13, fontWeight: '700' },
   input: {
-    borderWidth: 1,
-    borderColor: '#d3dee2',
-    borderRadius: 8,
-    paddingHorizontal: 10,
-    paddingVertical: 10,
-    marginBottom: 10,
-    color: '#12343b',
+    flex: 1,
+    paddingVertical: 14,
+    fontSize: 15,
+    color: C.text,
   },
-  button: { backgroundColor: '#0b7285', borderRadius: 8, paddingVertical: 12, alignItems: 'center', minHeight: 44 },
-  buttonDisabled: { backgroundColor: '#86a9b2' },
-  buttonInner: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  buttonText: { color: '#fff', fontWeight: '700' },
+
+  registerButton: { borderRadius: 12, overflow: 'hidden', marginTop: 8 },
+  buttonGradient: {
+    paddingVertical: 16,
+    alignItems: 'center',
+  },
+  buttonContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  buttonText: { color: '#fff', fontSize: 16, fontWeight: '700' },
+  buttonDisabled: { opacity: 0.7 },
+
+  loginLink: { marginTop: 20, alignItems: 'center' },
+  loginLinkText: { fontSize: 14, color: C.muted },
+  loginHighlight: { color: C.blue, fontWeight: '700' },
 });
 
 export default RegisterScreen;

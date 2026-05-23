@@ -6,6 +6,11 @@ export const itemService = {
     return data;
   },
 
+  async updateReport(id, patch) {
+    const { data } = await apiClient.put(`/items/${id}`, patch);
+    return data;
+  },
+
   async getLatestReports(params = {}) {
     const { data } = await apiClient.get('/items', { params });
     return data;
@@ -53,6 +58,21 @@ export const itemService = {
 
   async getPotentialMatches(id) {
     const { data } = await apiClient.get(`/items/${id}/matches`);
+    return data;
+  },
+
+  async requestClaim(id, payload) {
+    const { data } = await apiClient.post(`/items/${id}/claim`, payload);
+    return data;
+  },
+
+  async reviewClaim(id, payload) {
+    const { data } = await apiClient.patch(`/items/${id}/claim/review`, payload);
+    return data;
+  },
+
+  async getClaimContact(id) {
+    const { data } = await apiClient.get(`/items/${id}/claim/contact`);
     return data;
   },
 };

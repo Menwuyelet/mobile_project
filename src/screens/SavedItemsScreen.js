@@ -30,11 +30,11 @@ const SavedItemsScreen = ({ navigation }) => {
       <View style={styles.header}>
         <View>
           <View style={styles.titleRow}>
-            <AppIcon name="bookmark-multiple-outline" size={20} color="#12343b" />
+            <AppIcon name="bookmark-multiple-outline" size={20} color="#1f2937" />
             <Text style={styles.title}>Saved Reports</Text>
           </View>
           <View style={styles.subtitleRow}>
-            <AppIcon name="bookmark-outline" size={16} color="#5f7a80" />
+            <AppIcon name="bookmark-outline" size={16} color="#6b7280" />
             <Text style={styles.subtitle}>{savedItems.length} saved item(s)</Text>
           </View>
         </View>
@@ -69,7 +69,7 @@ const SavedItemsScreen = ({ navigation }) => {
 };
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: '#f6fafb' },
+  root: { flex: 1, backgroundColor: '#f5f7fb' },
   header: {
     paddingHorizontal: 14,
     paddingTop: 12,
@@ -79,9 +79,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   titleRow: { flexDirection: 'row', alignItems: 'center', gap: 7 },
-  title: { fontSize: 22, fontWeight: '800', color: '#12343b' },
+  title: { fontSize: 22, fontWeight: '800', color: '#1f2937' },
   subtitleRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 2 },
-  subtitle: { color: '#5f7a80' },
+  subtitle: { color: '#6b7280' },
   clearButton: {
     borderWidth: 1,
     borderColor: '#d7a6a6',

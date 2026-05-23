@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
+  Image,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -10,11 +12,18 @@ import {
   Text,
   TextInput,
   View,
-  Alert,
 } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
 import { useAuth } from '../context/AuthContext';
 import AppIcon from '../components/AppIcon';
+
+const C = {
+  blue: '#1a6edb',
+  white: '#ffffff',
+  bg: '#f5f7fb',
+  text: '#111827',
+  muted: '#6b7280',
+};
 
 const LoginScreen = ({ navigation }) => {
   const { login } = useAuth();
@@ -27,24 +36,20 @@ const LoginScreen = ({ navigation }) => {
 
   const onSubmit = async () => {
     setError('');
-
     if (!email.trim()) {
       setError('Email is required');
-      Alert.alert('Validation', 'Please enter your email');
-      return;
+      return Alert.alert('Validation', 'Please enter your email');
     }
-
     if (!password) {
       setError('Password is required');
-      Alert.alert('Validation', 'Please enter your password');
-      return;
+      return Alert.alert('Validation', 'Please enter your password');
     }
 
     setSubmitting(true);
     try {
       await login(email.trim(), password);
     } catch (err) {
-      setError(err.message || 'Login failed');
+      setError(err?.response?.data?.message || 'Login failed. Please try again.');
     } finally {
       setSubmitting(false);
     }
@@ -53,10 +58,10 @@ const LoginScreen = ({ navigation }) => {
   return (
     <SafeAreaView style={styles.root}>
       <LinearGradient
-        colors={['#0B7285', '#0A5F75', '#073B4B']}
+        colors={['#1a6edb', '#0f4ca8', '#0a3a7f']}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
-        style={styles.gradientBackground}
+        style={styles.gradient}
       >
         <KeyboardAvoidingView
           style={styles.keyboardWrap}
@@ -67,159 +72,118 @@ const LoginScreen = ({ navigation }) => {
             keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}
           >
-            {/* Header Section */}
-            <View style={styles.headerSection}>
+            {/* Logo & Header */}
+            <View style={styles.header}>
               <View style={styles.logoContainer}>
-                <LinearGradient
-                  colors={['#FFFFFF', '#F0F9FA']}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 1 }}
-                  style={styles.logoBg}
-                >
-                  <AppIcon name="shield-search-outline" size={32} color="#0B7285" />
-                </LinearGradient>
+                <View style={styles.logoCircle}>
+                  <AppIcon name="map-search" size={48} color="#ffffff" />
+                </View>
               </View>
-              <Text style={styles.appTitle}>LAFMS</Text>
+              <Text style={styles.appTitle}>FindIt</Text>
               <Text style={styles.appSubtitle}>Campus Lost & Found</Text>
-              <Text style={styles.tagline}>Sign in to recover your items</Text>
+              <Text style={styles.tagline}>Sign in to connect and recover items</Text>
             </View>
 
-            {/* Card Section */}
+            {/* Login Card */}
             <View style={styles.card}>
-              {error ? (
-                <View style={styles.errorContainer}>
-                  <AppIcon name="alert-circle" size={16} color="#DC2626" />
+              {error && (
+                <View style={styles.errorBox}>
+                  <AppIcon name="alert-circle-outline" size={18} color="#ef4444" />
                   <Text style={styles.errorText}>{error}</Text>
                 </View>
-              ) : null}
+              )}
 
-              {/* Email Input */}
-              <View style={styles.fieldContainer}>
-                <View style={styles.fieldHeader}>
-                  <AppIcon name="email-outline" size={16} color="#0B7285" />
-                  <Text style={styles.fieldLabel}>Email Address</Text>
+              {/* Email */}
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>Email Address</Text>
+                <View style={styles.inputWrapper}>
+                  <AppIcon name="email-outline" size={20} color={C.muted} />
+                  <TextInput
+                    style={styles.input}
+                    placeholder="you@example.com"
+                    keyboardType="email-address"
+                    autoCapitalize="none"
+                    value={email}
+                    onChangeText={(text) => {
+                      setEmail(text);
+                      setError('');
+                    }}
+                    editable={!submitting}
+                  />
                 </View>
-                <TextInput
-                  style={[styles.input, email && styles.inputFocused]}
-                  keyboardType="email-address"
-                  autoCapitalize="none"
-                  placeholder="you@example.com"
-                  placeholderTextColor="#A0ADB5"
-                  value={email}
-                  onChangeText={(text) => {
-                    setEmail(text);
-                    setError('');
-                  }}
-                  autoCorrect={false}
-                  autoComplete="email"
-                  textContentType="emailAddress"
-                  keyboardAppearance="light"
-                  selectionColor="#0B7285"
-                  cursorColor="#0B7285"
-                  editable={!submitting}
-                />
               </View>
 
-              {/* Password Input */}
-              <View style={styles.fieldContainer}>
-                <View style={styles.fieldHeader}>
-                  <AppIcon name="lock-outline" size={16} color="#0B7285" />
-                  <Text style={styles.fieldLabel}>Password</Text>
-                </View>
-                <View style={[styles.passwordWrapper, password && styles.inputFocused]}>
+              {/* Password */}
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>Password</Text>
+                <View style={styles.inputWrapper}>
+                  <AppIcon name="lock-outline" size={20} color={C.muted} />
                   <TextInput
-                    style={styles.passwordInput}
+                    style={styles.input}
                     placeholder="Enter your password"
-                    placeholderTextColor="#A0ADB5"
                     secureTextEntry={!showPassword}
                     value={password}
                     onChangeText={(text) => {
                       setPassword(text);
                       setError('');
                     }}
-                    autoComplete="password"
-                    textContentType="password"
-                    keyboardAppearance="light"
-                    selectionColor="#0B7285"
-                    cursorColor="#0B7285"
                     editable={!submitting}
                   />
-                  <Pressable
-                    style={styles.eyeButton}
-                    onPress={() => setShowPassword(!showPassword)}
-                  >
+                  <Pressable onPress={() => setShowPassword(!showPassword)} style={styles.eyeIcon}>
                     <AppIcon
                       name={showPassword ? 'eye-off-outline' : 'eye-outline'}
-                      size={18}
-                      color="#0B7285"
+                      size={20}
+                      color={C.muted}
                     />
                   </Pressable>
                 </View>
               </View>
 
-              {/* Remember Me & Forgot Password */}
+              {/* Options */}
               <View style={styles.optionsRow}>
-                <Pressable
-                  style={styles.rememberBox}
-                  onPress={() => setRememberMe(!rememberMe)}
-                >
-                  <View style={[styles.checkbox, rememberMe && styles.checkboxChecked]}>
-                    {rememberMe && (
-                      <AppIcon name="check" size={12} color="#FFFFFF" />
-                    )}
+                <Pressable style={styles.rememberRow} onPress={() => setRememberMe(!rememberMe)}>
+                  <View style={[styles.checkbox, rememberMe && styles.checkboxActive]}>
+                    {rememberMe && <AppIcon name="check" size={14} color="#fff" />}
                   </View>
                   <Text style={styles.rememberText}>Remember me</Text>
                 </Pressable>
 
                 <Pressable onPress={() => navigation.navigate('Register')}>
-                  <Text style={styles.forgotText}>Create account</Text>
+                  <Text style={styles.forgotText}>Create Account</Text>
                 </Pressable>
               </View>
 
-              {/* Login Button */}
-              <LinearGradient
-                colors={['#0B7285', '#0A5F75']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={styles.buttonGradient}
+              {/* Sign In Button */}
+              <Pressable
+                style={[styles.loginButton, submitting && styles.buttonDisabled]}
+                onPress={onSubmit}
+                disabled={submitting}
               >
-                <Pressable
-                  style={[styles.button, submitting && styles.buttonDisabled]}
-                  onPress={onSubmit}
-                  disabled={submitting}
+                <LinearGradient
+                  colors={['#1a6edb', '#0f4ca8']}
+                  style={styles.buttonGradient}
                 >
                   {submitting ? (
-                    <ActivityIndicator size="small" color="#FFFFFF" />
+                    <ActivityIndicator color="#fff" />
                   ) : (
-                    <View style={styles.buttonInner}>
-                      <AppIcon name="login" size={16} color="#FFFFFF" />
-                      <Text style={styles.buttonText}>Sign In</Text>
+                    <View style={styles.buttonContent}>
+                      <AppIcon name="login" size={18} color="#fff" />
+                      <Text style={styles.loginButtonText}>Sign In</Text>
                     </View>
                   )}
-                </Pressable>
-              </LinearGradient>
+                </LinearGradient>
+              </Pressable>
 
-              {/* Divider */}
-              <View style={styles.dividerContainer}>
-                <View style={styles.dividerLine} />
-                <Text style={styles.dividerText}>New here?</Text>
-                <View style={styles.dividerLine} />
-              </View>
-
-              {/* Register Button */}
+              {/* Register Link */}
               <Pressable
-                style={styles.secondaryButton}
+                style={styles.registerButton}
                 onPress={() => navigation.navigate('Register')}
               >
-                <AppIcon name="account-plus-outline" size={16} color="#0B7285" />
-                <Text style={styles.secondaryButtonText}>Create New Account</Text>
+                <Text style={styles.registerText}>
+                  Don't have an account? <Text style={styles.registerHighlight}>Create one</Text>
+                </Text>
               </Pressable>
             </View>
-
-            {/* Footer */}
-            <Text style={styles.footer}>
-              Secure • Fast • Reliable
-            </Text>
           </ScrollView>
         </KeyboardAvoidingView>
       </LinearGradient>
@@ -228,255 +192,109 @@ const LoginScreen = ({ navigation }) => {
 };
 
 const styles = StyleSheet.create({
-  root: {
-    flex: 1,
-    backgroundColor: '#0B7285'
-  },
-  gradientBackground: {
-    flex: 1,
-  },
-  keyboardWrap: {
-    flex: 1
-  },
+  root: { flex: 1 },
+  gradient: { flex: 1 },
+  keyboardWrap: { flex: 1 },
   scrollContent: {
     flexGrow: 1,
     justifyContent: 'center',
     padding: 20,
-    paddingBottom: 40,
   },
 
-  /* Header Section */
-  headerSection: {
+  header: { alignItems: 'center', marginBottom: 32 },
+  logoContainer: { marginBottom: 12 },
+  logoCircle: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: 'rgba(255,255,255,0.25)',
     alignItems: 'center',
-    marginBottom: 32,
-  },
-  logoContainer: {
-    marginBottom: 16,
-  },
-  logoBg: {
-    width: 70,
-    height: 70,
-    borderRadius: 35,
     justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
-    elevation: 8,
   },
-  appTitle: {
-    fontSize: 32,
-    fontWeight: '900',
-    color: '#FFFFFF',
-    letterSpacing: 1,
-    marginBottom: 4,
-  },
-  appSubtitle: {
-    fontSize: 14,
-    color: '#B3E5FC',
-    fontWeight: '500',
-    marginBottom: 8,
-  },
-  tagline: {
-    fontSize: 13,
-    color: '#FFFFFF',
-    opacity: 0.85,
-  },
+  appTitle: { fontSize: 32, fontWeight: '800', color: '#fff', marginBottom: 4 },
+  appSubtitle: { fontSize: 15, color: 'rgba(255,255,255,0.85)', fontWeight: '600' },
+  tagline: { fontSize: 13, color: 'rgba(255,255,255,0.75)', marginTop: 4 },
 
-  /* Card */
   card: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#fff',
     borderRadius: 20,
     padding: 24,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.2,
-    shadowRadius: 16,
-    elevation: 10,
-    marginBottom: 24,
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.15,
+    shadowRadius: 20,
+    elevation: 12,
   },
 
-  /* Error */
-  errorContainer: {
+  errorBox: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FEE2E2',
-    borderRadius: 12,
-    padding: 12,
-    marginBottom: 16,
     gap: 8,
+    backgroundColor: '#fef2f2',
+    padding: 12,
+    borderRadius: 12,
+    marginBottom: 16,
     borderLeftWidth: 4,
-    borderLeftColor: '#DC2626',
+    borderLeftColor: '#ef4444',
   },
-  errorText: {
-    flex: 1,
-    color: '#DC2626',
-    fontSize: 13,
-    fontWeight: '600',
-  },
+  errorText: { color: '#ef4444', fontSize: 13, fontWeight: '500', flex: 1 },
 
-  /* Field */
-  fieldContainer: {
-    marginBottom: 18,
-  },
-  fieldHeader: {
+  inputGroup: { marginBottom: 18 },
+  label: { fontSize: 13, fontWeight: '700', color: C.text, marginBottom: 6 },
+  inputWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 8,
-    gap: 6,
-  },
-  fieldLabel: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#073B4B',
-    letterSpacing: 0.3,
+    backgroundColor: '#f8fafc',
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    borderRadius: 12,
+    paddingHorizontal: 14,
   },
   input: {
-    borderWidth: 1.5,
-    borderColor: '#E0E7EB',
-    borderRadius: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    fontSize: 14,
-    color: '#073B4B',
-    backgroundColor: '#F9FAFB',
-    fontWeight: '500',
-  },
-  inputFocused: {
-    borderColor: '#0B7285',
-    backgroundColor: '#F0FFFE',
-  },
-
-  /* Password Wrapper */
-  passwordWrapper: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderWidth: 1.5,
-    borderColor: '#E0E7EB',
-    borderRadius: 12,
-    backgroundColor: '#F9FAFB',
-    paddingRight: 8,
-  },
-  passwordInput: {
     flex: 1,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    fontSize: 14,
-    color: '#073B4B',
-    fontWeight: '500',
+    paddingVertical: 14,
+    fontSize: 15,
+    color: C.text,
   },
-  eyeButton: {
-    padding: 8,
-  },
+  eyeIcon: { padding: 6 },
 
-  /* Options Row */
   optionsRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 20,
+    marginBottom: 24,
   },
-  rememberBox: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
+  rememberRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   checkbox: {
-    width: 18,
-    height: 18,
+    width: 20,
+    height: 20,
+    borderRadius: 6,
     borderWidth: 2,
-    borderColor: '#0B7285',
-    borderRadius: 4,
-    justifyContent: 'center',
+    borderColor: C.blue,
     alignItems: 'center',
+    justifyContent: 'center',
   },
-  checkboxChecked: {
-    backgroundColor: '#0B7285',
-    borderColor: '#0B7285',
-  },
-  rememberText: {
-    fontSize: 13,
-    color: '#555555',
-    fontWeight: '500',
-  },
-  forgotText: {
-    fontSize: 12,
-    color: '#0B7285',
-    fontWeight: '700',
-    textDecorationLine: 'underline',
-  },
+  checkboxActive: { backgroundColor: C.blue },
 
-  /* Button */
+  rememberText: { color: C.muted, fontSize: 14 },
+  forgotText: { color: C.blue, fontWeight: '600' },
+
+  loginButton: { borderRadius: 12, overflow: 'hidden', marginBottom: 16 },
   buttonGradient: {
-    borderRadius: 12,
-    marginBottom: 16,
-  },
-  button: {
-    paddingVertical: 14,
+    paddingVertical: 16,
     alignItems: 'center',
-    justifyContent: 'center',
   },
-  buttonDisabled: {
-    opacity: 0.7,
-  },
-  buttonInner: {
+  buttonContent: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
   },
-  buttonText: {
-    color: '#FFFFFF',
-    fontSize: 15,
-    fontWeight: '700',
-    letterSpacing: 0.5,
-  },
+  loginButtonText: { color: '#fff', fontSize: 16, fontWeight: '700' },
+  buttonDisabled: { opacity: 0.7 },
 
-  /* Divider */
-  dividerContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 16,
-    gap: 12,
-  },
-  dividerLine: {
-    flex: 1,
-    height: 1,
-    backgroundColor: '#E0E7EB',
-  },
-  dividerText: {
-    fontSize: 12,
-    color: '#9CA3AF',
-    fontWeight: '600',
-  },
-
-  /* Secondary Button */
-  secondaryButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: 12,
-    borderWidth: 2,
-    borderColor: '#0B7285',
-    backgroundColor: '#F0FFFE',
-    gap: 8,
-  },
-  secondaryButtonText: {
-    color: '#0B7285',
-    fontSize: 14,
-    fontWeight: '700',
-  },
-
-  /* Footer */
-  footer: {
-    textAlign: 'center',
-    fontSize: 11,
-    color: '#FFFFFF',
-    opacity: 0.8,
-    marginTop: 8,
-  },
+  registerButton: { alignItems: 'center', paddingVertical: 12 },
+  registerText: { fontSize: 14, color: C.muted },
+  registerHighlight: { color: C.blue, fontWeight: '700' },
 });
 
 export default LoginScreen;

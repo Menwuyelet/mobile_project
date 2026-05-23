@@ -1,19 +1,19 @@
 const USB_REVERSE_API_BASE_URL = 'http://127.0.0.1:5000/api';
 const EMULATOR_API_BASE_URL = 'http://10.0.2.2:5000/api';
 const LOCAL_PHONE_API_BASE_URL = 'http://192.168.1.20:5000/api';
-const HOSTED_API_BASE_URL = 'https://mobile-app-ff7d.onrender.com/api';
+const HOSTED_API_BASE_URL = 'https://mobile-project-xvez.onrender.com/api';
 
 // Modes: auto | usb_reverse | emulator | phone_wifi | hosted
-// auto tries local targets first, then hosted fallback.
-// For development with USB debugging, use 'usb_reverse'
-const DEV_BACKEND_MODE = 'usb_reverse';
+// auto prefers live hosted API first so the app still works after USB disconnect.
+// For strict USB local backend testing, switch to 'usb_reverse'.
+const DEV_BACKEND_MODE = 'auto';
 
 const MODE_TARGETS = {
   auto: [
+    HOSTED_API_BASE_URL,
     USB_REVERSE_API_BASE_URL,
     EMULATOR_API_BASE_URL,
     LOCAL_PHONE_API_BASE_URL,
-    HOSTED_API_BASE_URL,
   ],
   usb_reverse: [USB_REVERSE_API_BASE_URL, HOSTED_API_BASE_URL],
   emulator: [EMULATOR_API_BASE_URL, HOSTED_API_BASE_URL],

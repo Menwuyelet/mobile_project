@@ -41,10 +41,66 @@ const itemSchema = new mongoose.Schema(
       type: String,
       default: '',
     },
+    secretQuestions: [
+      {
+        question: {
+          type: String,
+          trim: true,
+          default: '',
+        },
+        answerHash: {
+          type: String,
+          default: '',
+        },
+      },
+    ],
     reportedBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
       required: true,
+    },
+    claim: {
+      status: {
+        type: String,
+        enum: ['none', 'pending', 'approved', 'declined'],
+        default: 'none',
+      },
+      requester: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
+        default: null,
+      },
+      answers: {
+        type: [String],
+        default: [],
+      },
+      note: {
+        type: String,
+        trim: true,
+        default: '',
+      },
+      autoMatched: {
+        type: Boolean,
+        default: false,
+      },
+      requestedAt: {
+        type: Date,
+        default: null,
+      },
+      reviewedAt: {
+        type: Date,
+        default: null,
+      },
+      reviewedBy: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
+        default: null,
+      },
+      reviewNote: {
+        type: String,
+        trim: true,
+        default: '',
+      },
     },
     flagged: {
       type: Boolean,
@@ -94,5 +150,6 @@ const itemSchema = new mongoose.Schema(
 itemSchema.index({ title: 'text', description: 'text', category: 'text', campus: 'text' });
 itemSchema.index({ status: 1, campus: 1, category: 1, createdAt: -1 });
 itemSchema.index({ flagged: 1, createdAt: -1 });
+itemSchema.index({ 'claim.status': 1, createdAt: -1 });
 
 module.exports = mongoose.model('Item', itemSchema);

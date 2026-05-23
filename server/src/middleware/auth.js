@@ -16,6 +16,9 @@ const requireAuth = async (req, res, next) => {
     if (!user) {
       return res.status(401).json({ message: 'Invalid token user.' });
     }
+    if (user.isSuspended) {
+      return res.status(403).json({ message: 'Your account is suspended. Please contact admin.' });
+    }
 
     req.user = user;
     next();

@@ -1,13 +1,11 @@
-import React, { useCallback, useEffect, useMemo } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
+  ActivityIndicator,
   Alert,
   FlatList,
-  Image,
-  ImageBackground,
   Pressable,
   RefreshControl,
   SafeAreaView,
-  ScrollView,
   StyleSheet,
   Text,
   View,
@@ -17,133 +15,145 @@ import { useAuth } from '../context/AuthContext';
 import ItemCard from '../components/ItemCard';
 import EmptyState from '../components/EmptyState';
 import AppIcon from '../components/AppIcon';
-import { lafmsGallery, lafmsHeroImage } from '../assets/images';
+
+const FEED_FILTERS = [
+  { key: 'all', label: 'All', icon: 'view-grid-outline' },
+  { key: 'lost', label: 'Lost', icon: 'help-circle-outline' },
+  { key: 'found', label: 'Found', icon: 'hand-coin-outline' },
+  { key: 'recovered', label: 'Recovered', icon: 'check-circle-outline' },
+];
+
+const StatusMiniCard = ({ icon, label, value, color }) => (
+  <View style={styles.miniCard}>
+    <AppIcon name={icon} size={15} color={color} />
+    <Text style={styles.miniCardValue}>{value}</Text>
+    <Text style={styles.miniCardLabel}>{label}</Text>
+  </View>
+);
+
+const normalizeStatus = (status = '') => (status === 'returned' ? 'recovered' : status);
 
 const HomeScreen = ({ navigation }) => {
   const { items, loadLatest, loading } = useItems();
   const { user } = useAuth();
 
-  const init = useCallback(() => {
-    loadLatest().catch((error) => console.error(error));
+  const [loadError, setLoadError] = useState('');
+  const [feedFilter, setFeedFilter] = useState('all');
+
+  const safeItems = Array.isArray(items) ? items : [];
+
+  const init = useCallback(async () => {
+    setLoadError('');
+    try {
+      await loadLatest();
+    } catch (error) {
+      const message = error?.response?.data?.message || 'Could not refresh reports right now.';
+      setLoadError(message);
+    }
   }, [loadLatest]);
 
   useEffect(() => {
     init();
   }, [init]);
 
-  const summary = useMemo(() => {
-    const lost = items.filter((item) => item.status === 'lost').length;
-    const found = items.filter((item) => item.status === 'found').length;
-    const recovered = items.filter((item) => item.status === 'recovered').length;
-
-    return { lost, found, recovered };
-  }, [items]);
-
-
   const requireLogin = useCallback(() => {
     Alert.alert('Login required', 'Please sign in first to use this feature.');
     navigation.navigate('Account');
   }, [navigation]);
 
+  const summary = useMemo(() => {
+    const lost = safeItems.filter((item) => normalizeStatus(item?.status) === 'lost').length;
+    const found = safeItems.filter((item) => normalizeStatus(item?.status) === 'found').length;
+    const recovered = safeItems.filter((item) => normalizeStatus(item?.status) === 'recovered').length;
+
+    return { lost, found, recovered, total: safeItems.length };
+  }, [safeItems]);
+
+  const filteredItems = useMemo(() => (
+    feedFilter === 'all' ? safeItems : safeItems.filter((item) => normalizeStatus(item?.status) === feedFilter)
+  ), [feedFilter, safeItems]);
+
+  const userLabel = user?.name ? user.name.split(' ')[0] : 'Guest';
+  const dateLabel = useMemo(
+    () => new Date().toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' }),
+    []
+  );
+
   const listHeader = (
-    <View style={styles.headerContainer}>
-      <ImageBackground source={lafmsHeroImage} style={styles.hero} imageStyle={styles.heroImage}>
-        <View style={styles.heroOverlay}>
-          <Text style={styles.heroTitle}>LAFMS</Text>
-          <Text style={styles.heroSubtitle}>Fast reporting, trusted matching, easy recovery</Text>
+    <View style={styles.headerWrap}>
+      <View style={styles.heroCard}>
+        <View style={styles.heroTopRow}>
+          <Text style={styles.heroDate}>{dateLabel}</Text>
+          <View style={styles.heroBadge}>
+            <AppIcon name="shield-check-outline" size={12} color="#1a6edb" />
+            <Text style={styles.heroBadgeText}>Trusted feed</Text>
+          </View>
         </View>
-      </ImageBackground>
 
-      <View style={styles.actionGrid}>
-        <Pressable
-          style={({ pressed }) => [styles.actionButton, pressed && styles.actionPressed]}
-          onPress={() => (user ? navigation.navigate('Report') : requireLogin())}
-        >
-          <View style={styles.actionTitleRow}>
-            <AppIcon name="file-document-edit-outline" size={16} color="#153742" />
-            <Text style={styles.actionTitle}>Report Item</Text>
-          </View>
-          <Text style={styles.actionMeta}>Lost or found</Text>
-        </Pressable>
-        <Pressable style={({ pressed }) => [styles.actionButton, pressed && styles.actionPressed]} onPress={() => navigation.navigate('Search')}>
-          <View style={styles.actionTitleRow}>
-            <AppIcon name="magnify" size={16} color="#153742" />
-            <Text style={styles.actionTitle}>Search Reports</Text>
-          </View>
-          <Text style={styles.actionMeta}>Filter by item details</Text>
-        </Pressable>
-        <Pressable style={({ pressed }) => [styles.actionButton, pressed && styles.actionPressed]} onPress={() => navigation.navigate('Saved')}>
-          <View style={styles.actionTitleRow}>
-            <AppIcon name="bookmark-outline" size={16} color="#153742" />
-            <Text style={styles.actionTitle}>Saved Items</Text>
-          </View>
-          <Text style={styles.actionMeta}>Your bookmarks</Text>
-        </Pressable>
-        <Pressable
-          style={({ pressed }) => [styles.actionButton, pressed && styles.actionPressed]}
-          onPress={() => (user ? navigation.navigate('Alerts') : requireLogin())}
-        >
-          <View style={styles.actionTitleRow}>
-            <AppIcon name="bell-outline" size={16} color="#153742" />
-            <Text style={styles.actionTitle}>Check Alerts</Text>
-          </View>
-          <Text style={styles.actionMeta}>Stay updated</Text>
-        </Pressable>
-      </View>
+        <Text style={styles.heroTitle}>Hi {userLabel}</Text>
+        <Text style={styles.heroSub}>Lost something on campus? Report fast and track updates from one place.</Text>
 
-      <View style={styles.section}>
-        <View style={styles.sectionTitleRow}>
-          <AppIcon name="chart-box-outline" size={18} color="#173944" />
-          <Text style={styles.sectionTitle}>LAFMS Overview</Text>
-        </View>
-        <View style={styles.summaryRow}>
-          <View style={styles.summaryCard}>
-            <AppIcon name="help-circle-outline" size={18} color="#8a1f1f" />
-            <Text style={styles.summaryValue}>{summary.lost}</Text>
-            <Text style={styles.summaryLabel}>Lost</Text>
-          </View>
-          <View style={styles.summaryCard}>
-            <AppIcon name="hand-coin-outline" size={18} color="#156e22" />
-            <Text style={styles.summaryValue}>{summary.found}</Text>
-            <Text style={styles.summaryLabel}>Found</Text>
-          </View>
-          <View style={styles.summaryCard}>
-            <AppIcon name="check-circle-outline" size={18} color="#2b3c78" />
-            <Text style={styles.summaryValue}>{summary.recovered}</Text>
-            <Text style={styles.summaryLabel}>Recovered</Text>
-          </View>
+        <View style={styles.heroCtaRow}>
+          <Pressable
+            style={[styles.ctaButton, styles.ctaPrimary]}
+            onPress={() => (user ? navigation.navigate('Post') : requireLogin())}
+          >
+            <AppIcon name="plus" size={16} color="#fff" />
+            <Text style={styles.ctaPrimaryText}>Report Item</Text>
+          </Pressable>
+
+          <Pressable style={[styles.ctaButton, styles.ctaGhost]} onPress={() => navigation.navigate('Search')}>
+            <AppIcon name="magnify" size={16} color="#1a6edb" />
+            <Text style={styles.ctaGhostText}>Search</Text>
+          </Pressable>
         </View>
       </View>
 
-
-      <View style={styles.section}>
-        <View style={styles.sectionTitleRow}>
-          <AppIcon name="image-multiple-outline" size={18} color="#173944" />
-          <Text style={styles.sectionTitle}>LAFMS Gallery</Text>
-        </View>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.galleryRow}>
-          {lafmsGallery.map((image, index) => (
-            <View style={styles.galleryCard} key={`gallery-${index}`}>
-              <Image source={image} style={styles.galleryImage} />
-              <Text style={styles.galleryText}>LAFMS</Text>
-            </View>
-          ))}
-        </ScrollView>
+      <View style={styles.statsRow}>
+        <StatusMiniCard icon="help-circle-outline" label="Lost" value={summary.lost} color="#a11b48" />
+        <StatusMiniCard icon="hand-coin-outline" label="Found" value={summary.found} color="#0f6f4f" />
+        <StatusMiniCard icon="check-circle-outline" label="Recovered" value={summary.recovered} color="#2443a5" />
       </View>
 
       <View style={styles.feedTitleRow}>
-        <AppIcon name="timeline-text-outline" size={18} color="#13363d" />
-        <Text style={styles.feedTitle}>Latest Lost & Found Reports</Text>
+        <Text style={styles.feedTitle}>Latest Reports</Text>
+        <Text style={styles.feedCount}>{summary.total}</Text>
       </View>
-      <Text style={styles.feedSubtitle}>Live feed from the community</Text>
+      <Text style={styles.feedSub}>Pull down to refresh the feed.</Text>
+
+      <View style={styles.filtersRow}>
+        {FEED_FILTERS.map((entry) => {
+          const active = feedFilter === entry.key;
+          return (
+            <Pressable
+              key={entry.key}
+              style={[styles.filterChip, active && styles.filterChipActive]}
+              onPress={() => setFeedFilter(entry.key)}
+            >
+              <AppIcon name={entry.icon} size={14} color={active ? '#fff' : '#45606a'} />
+              <Text style={[styles.filterChipText, active && styles.filterChipTextActive]}>{entry.label}</Text>
+            </Pressable>
+          );
+        })}
+      </View>
+
+      {!!loadError && (
+        <View style={styles.errorBanner}>
+          <AppIcon name="alert-circle-outline" size={16} color="#9f1239" />
+          <Text style={styles.errorText} numberOfLines={2}>{loadError}</Text>
+          <Pressable onPress={init} style={styles.retryButton}>
+            <Text style={styles.retryText}>Retry</Text>
+          </Pressable>
+        </View>
+      )}
     </View>
   );
 
   return (
     <SafeAreaView style={styles.root}>
       <FlatList
-        data={items}
-        keyExtractor={(item) => item._id}
+        data={filteredItems}
+        keyExtractor={(item) => item?._id || item?.id || `${item?.title || 'item'}-${item?.createdAt || '0'}`}
         keyboardShouldPersistTaps="handled"
         initialNumToRender={8}
         maxToRenderPerBatch={8}
@@ -154,13 +164,26 @@ const HomeScreen = ({ navigation }) => {
         ListHeaderComponent={listHeader}
         contentContainerStyle={styles.listContent}
         refreshControl={<RefreshControl refreshing={loading} onRefresh={init} />}
-        ListEmptyComponent={(
+        ListEmptyComponent={loading ? (
+          <View style={styles.loadingWrap}>
+            <ActivityIndicator size="large" color="#1a6edb" />
+            <Text style={styles.loadingText}>Loading campus reports...</Text>
+          </View>
+        ) : safeItems.length > 0 ? (
+          <EmptyState
+            iconName="filter-outline"
+            title="No Matching Reports"
+            message="Try another filter to see more reports."
+            actionLabel="Show All"
+            onAction={() => setFeedFilter('all')}
+          />
+        ) : (
           <EmptyState
             iconName="basket-outline"
             title="No Reports Yet"
             message="Start by posting a lost or found item."
             actionLabel="Create First Report"
-            onAction={() => (user ? navigation.navigate('Report') : requireLogin())}
+            onAction={() => (user ? navigation.navigate('Post') : requireLogin())}
           />
         )}
       />
@@ -169,69 +192,120 @@ const HomeScreen = ({ navigation }) => {
 };
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: '#f4f7f8' },
+  root: { flex: 1, backgroundColor: '#f1f5f9' },
   listContent: { paddingHorizontal: 12, paddingBottom: 24 },
-  headerContainer: { paddingTop: 12 },
-  hero: {
-    height: 190,
-    borderRadius: 16,
-    overflow: 'hidden',
-    backgroundColor: '#0b2232',
-  },
-  heroImage: { opacity: 0.86 },
-  heroOverlay: {
-    flex: 1,
-    justifyContent: 'flex-end',
-    padding: 16,
-    backgroundColor: 'rgba(12, 36, 46, 0.42)',
-  },
-  heroTitle: { color: '#f9feff', fontSize: 24, fontWeight: '900' },
-  heroSubtitle: { color: '#d8edf2', marginTop: 4, fontSize: 14, fontWeight: '600' },
-  actionGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 12 },
-  actionButton: {
-    flexGrow: 1,
-    minWidth: 105,
+  headerWrap: { paddingTop: 12 },
+
+  heroCard: {
     backgroundColor: '#ffffff',
     borderWidth: 1,
-    borderColor: '#d5e4e8',
-    borderRadius: 12,
-    paddingHorizontal: 12,
-    paddingVertical: 12,
+    borderColor: '#d9e3e8',
+    borderRadius: 16,
+    padding: 14,
   },
-  actionPressed: { opacity: 0.75 },
-  actionTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  actionTitle: { color: '#153742', fontWeight: '800', fontSize: 13 },
-  actionMeta: { color: '#638088', marginTop: 3, fontSize: 12 },
-  section: { marginTop: 14 },
-  sectionTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 8 },
-  sectionTitle: { fontSize: 18, fontWeight: '800', color: '#173944' },
-  summaryRow: { flexDirection: 'row', gap: 8 },
-  summaryCard: {
+  heroTopRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  heroDate: { color: '#5b7279', fontSize: 12, fontWeight: '700' },
+  heroBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: '#ecf4ff',
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+  },
+  heroBadgeText: { color: '#1a6edb', fontWeight: '700', fontSize: 11 },
+  heroTitle: { color: '#0f2f38', fontSize: 26, fontWeight: '900', marginTop: 10 },
+  heroSub: { color: '#577078', fontSize: 13, marginTop: 5, lineHeight: 19 },
+
+  heroCtaRow: { flexDirection: 'row', gap: 8, marginTop: 12 },
+  ctaButton: {
     flex: 1,
-    backgroundColor: '#fff',
-    borderWidth: 1,
-    borderColor: '#d4e4e8',
     borderRadius: 10,
     paddingVertical: 10,
     alignItems: 'center',
-    gap: 2,
+    justifyContent: 'center',
+    flexDirection: 'row',
+    gap: 6,
   },
-  summaryValue: { fontSize: 18, fontWeight: '800', color: '#164a55' },
-  summaryLabel: { color: '#5f7a80', marginTop: 2, fontSize: 12 },
-  galleryRow: { gap: 10 },
-  galleryCard: {
-    width: 220,
-    backgroundColor: '#fff',
-    borderRadius: 12,
+  ctaPrimary: { backgroundColor: '#1a6edb' },
+  ctaPrimaryText: { color: '#fff', fontWeight: '800', fontSize: 13 },
+  ctaGhost: { borderWidth: 1, borderColor: '#c8d8e3', backgroundColor: '#f7fbff' },
+  ctaGhostText: { color: '#1a6edb', fontWeight: '800', fontSize: 13 },
+
+  statsRow: { flexDirection: 'row', gap: 8, marginTop: 12 },
+  miniCard: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: 10,
+    backgroundColor: '#ffffff',
     borderWidth: 1,
-    borderColor: '#d8e5e8',
-    overflow: 'hidden',
+    borderColor: '#d9e3e8',
+    borderRadius: 12,
   },
-  galleryImage: { width: '100%', height: 128 },
-  galleryText: { color: '#32525a', fontWeight: '700', padding: 10 },
-  feedTitleRow: { marginTop: 14, flexDirection: 'row', alignItems: 'center', gap: 6 },
-  feedTitle: { fontSize: 20, fontWeight: '900', color: '#13363d' },
-  feedSubtitle: { color: '#5f7a80', marginTop: 2, marginBottom: 2, marginLeft: 24 },
+  miniCardValue: { fontSize: 19, fontWeight: '900', color: '#123b45', marginTop: 3 },
+  miniCardLabel: { fontSize: 12, fontWeight: '700', color: '#5e747b', marginTop: 1 },
+
+  feedTitleRow: { marginTop: 15, flexDirection: 'row', alignItems: 'center' },
+  feedTitle: { fontSize: 21, fontWeight: '900', color: '#123944' },
+  feedCount: {
+    marginLeft: 8,
+    minWidth: 28,
+    textAlign: 'center',
+    borderRadius: 999,
+    backgroundColor: '#e7f0fb',
+    color: '#1a6edb',
+    fontWeight: '800',
+    fontSize: 12,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  feedSub: { color: '#607780', marginTop: 2, fontSize: 12, fontWeight: '600' },
+
+  filtersRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 10 },
+  filterChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 11,
+    paddingVertical: 7,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: '#cedce3',
+    backgroundColor: '#fff',
+  },
+  filterChipActive: { backgroundColor: '#1a6edb', borderColor: '#1a6edb' },
+  filterChipText: { color: '#45606a', fontWeight: '700', fontSize: 12 },
+  filterChipTextActive: { color: '#fff' },
+
+  errorBanner: {
+    marginTop: 10,
+    backgroundColor: '#ffe4ec',
+    borderWidth: 1,
+    borderColor: '#fecdd3',
+    borderRadius: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  errorText: { flex: 1, color: '#9f1239', fontSize: 12, fontWeight: '600' },
+  retryButton: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    backgroundColor: '#be123c',
+    borderRadius: 8,
+  },
+  retryText: { color: '#fff', fontSize: 12, fontWeight: '700' },
+
+  loadingWrap: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 32,
+    gap: 10,
+  },
+  loadingText: { color: '#4b6b73', fontWeight: '600' },
 });
 
 export default HomeScreen;

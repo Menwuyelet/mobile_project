@@ -9,7 +9,7 @@ const EmptyState = ({ title = 'No Data Yet', message, icon, iconName = 'inbox-ou
         <Text style={styles.iconEmoji}>{icon}</Text>
       ) : (
         <View style={styles.iconWrap}>
-          <AppIcon name={iconName} size={30} color="#2a5b66" />
+          <AppIcon name={iconName} size={30} color="#1a6edb" />
         </View>
       )}
       <Text style={styles.title}>{title}</Text>
@@ -30,9 +30,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: '#d7e4e8',
+    borderColor: '#e5e7eb',
     borderRadius: 12,
-    backgroundColor: '#fbfeff',
+    backgroundColor: '#ffffff',
     marginTop: 10,
   },
   iconWrap: {
@@ -42,17 +42,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 8,
-    backgroundColor: '#edf7fa',
+    backgroundColor: '#eef2ff',
   },
   iconEmoji: { fontSize: 28, marginBottom: 8 },
   title: {
-    color: '#204a54',
+    color: '#1f2937',
     fontSize: 16,
     fontWeight: '800',
     marginBottom: 6,
   },
   text: {
-    color: '#577079',
+    color: '#6b7280',
     fontSize: 14,
     textAlign: 'center',
   },
@@ -61,7 +61,7 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     paddingHorizontal: 14,
     paddingVertical: 8,
-    backgroundColor: '#0b7285',
+    backgroundColor: '#1a6edb',
   },
   buttonText: {
     color: '#fff',

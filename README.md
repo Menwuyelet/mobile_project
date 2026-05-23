@@ -84,18 +84,21 @@ Edit `src/config/env.js`.
 
 Default repo config already uses hosted mode:
 
-- `DEV_BACKEND_MODE = 'hosted'`
-- `HOSTED_API_BASE_URL = 'https://mobile-app-ff7d.onrender.com/api'`
+- `DEV_BACKEND_MODE = 'auto'`
+- `HOSTED_API_BASE_URL = 'https://mobile-project-xvez.onrender.com/api'`
 
 ## Run the Mobile App
 
 ### Recommended: standalone release mode (no Metro required)
 
 ```bash
-npm run android
+npm run phone:auto
+# or
+npm run remote:install
 ```
 
-This runs Android in release mode and behaves like a real installed app.
+This builds and installs a standalone release app that uses the hosted backend (no local Metro required).
+After install, the app continues to work even when USB is disconnected (internet required).
 
 ### Debug mode (Metro + hot reload)
 
@@ -125,8 +128,9 @@ ANDROID_SERIAL=<device-id> npm run android:usb:device
 ```bash
 npm run apk:debug
 npm run apk:release
-npm run install:phone:debug
 npm run install:phone
+npm run install:phone:release
+npm run remote:install
 ```
 
 APK output paths:
@@ -138,13 +142,17 @@ APK output paths:
 
 - `npm run start` - Start Metro
 - `npm run start:reset` - Start Metro with cache reset
-- `npm run android` - Run Android release build
-- `npm run android:dev` - Run Android debug build
+- `npm run android` - Run Android debug build
+- `npm run android:dev` - Alias for debug build
+- `npm run android:release` - Run Android release build
 - `npm run server:dev` - Start backend in dev mode
 - `npm run server:start` - Start backend in normal mode
 - `npm run dev:all` - Start backend + Metro together
 - `npm run apk:release` - Build release APK
-- `npm run install:phone` - Install release APK to connected device
+- `npm run install:phone` - Install debug APK to connected device (USB reverse for local API)
+- `npm run install:phone:release` - Install release APK to connected device
+- `npm run phone:auto` - Build + install release APK and launch app automatically (live backend)
+- `npm run remote:install` - Build + install release APK for remote backend usage
 
 ## Troubleshooting
 
@@ -162,9 +170,12 @@ adb reverse tcp:8081 tcp:8081
 Or install standalone release build:
 
 ```bash
-npm run apk:release
-npm run install:phone
+npm run phone:auto
+# or
+npm run remote:install
 ```
+
+Debug build note: if USB is disconnected, debug build can stop working because Metro/reverse tunnel is gone.
 
 ### `adb: more than one device/emulator`
 

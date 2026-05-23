@@ -1,9 +1,10 @@
 import React from 'react';
-import { ActivityIndicator, View } from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import AppIcon from '../components/AppIcon';
 import { useAuth } from '../context/AuthContext';
+
 import LoginScreen from '../screens/LoginScreen';
 import RegisterScreen from '../screens/RegisterScreen';
 import HomeScreen from '../screens/HomeScreen';
@@ -20,73 +21,131 @@ import AccountScreen from '../screens/AccountScreen';
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
 
-const TAB_META = {
-  Home: { icon: 'home-outline', label: 'Home Feed' },
-  Report: { icon: 'file-document-edit-outline', label: 'Report Item' },
-  Search: { icon: 'magnify', label: 'Search' },
-  Saved: { icon: 'bookmark-outline', label: 'Saved' },
-  Alerts: { icon: 'bell-outline', label: 'Alerts' },
-  Verify: { icon: 'shield-check-outline', label: 'Verify' },
-  Account: { icon: 'account-circle-outline', label: 'Account' },
-  Admin: { icon: 'shield-account-outline', label: 'Admin' },
-};
-
 const MainTabs = ({ isAdmin }) => {
   return (
     <Tab.Navigator
       initialRouteName="Home"
-      screenOptions={({ route }) => ({
-        headerStyle: { backgroundColor: '#f5f8ff' },
-        headerShadowVisible: false,
-        headerTintColor: '#1f2f56',
-        headerTitleStyle: { fontWeight: '800' },
-        tabBarActiveTintColor: '#4f46e5',
-        tabBarInactiveTintColor: '#7e84a3',
-        tabBarLabelStyle: { fontWeight: '700', fontSize: 12 },
+      screenOptions={{
+        headerShown: false,
         tabBarStyle: {
+          backgroundColor: '#ffffff',
           borderTopWidth: 1,
-          borderTopColor: '#d9dff2',
-          height: 62,
+          borderTopColor: '#e5e7eb',
+          height: 68,
           paddingBottom: 8,
           paddingTop: 6,
-          backgroundColor: '#ffffff',
+          elevation: 8,
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: -2 },
+          shadowOpacity: 0.1,
+          shadowRadius: 8,
         },
-        tabBarIcon: ({ color, focused }) => (
-          <AppIcon
-            name={TAB_META[route.name]?.icon || 'circle-outline'}
-            color={color}
-            size={focused ? 22 : 20}
-          />
-        ),
-      })}
+        tabBarActiveTintColor: '#1a6edb',
+        tabBarInactiveTintColor: '#6b7280',
+        tabBarLabelStyle: { fontSize: 10, fontWeight: '600', marginBottom: 2 },
+      }}
     >
-      <Tab.Screen name="Home" component={HomeScreen} options={{ title: TAB_META.Home.label }} />
-      <Tab.Screen name="Report" component={ReportItemScreen} options={{ title: TAB_META.Report.label }} />
-      <Tab.Screen name="Search" component={SearchScreen} options={{ title: TAB_META.Search.label }} />
-      <Tab.Screen name="Saved" component={SavedItemsScreen} options={{ title: TAB_META.Saved.label }} />
-      <Tab.Screen name="Alerts" component={NotificationsScreen} options={{ title: TAB_META.Alerts.label }} />
-      <Tab.Screen name="Verify" component={VerificationScreen} options={{ title: TAB_META.Verify.label }} />
-      <Tab.Screen name="Account" component={AccountScreen} options={{ title: TAB_META.Account.label }} />
-      {isAdmin && <Tab.Screen name="Admin" component={AdminDashboardScreen} options={{ title: TAB_META.Admin.label }} />}
+      {/* Home */}
+      <Tab.Screen
+        name="Home"
+        component={HomeScreen}
+        options={{
+          tabBarIcon: ({ color, focused }) => (
+            <AppIcon name="home-outline" size={focused ? 26 : 24} color={color} />
+          ),
+          tabBarLabel: 'Home',
+        }}
+      />
+
+      {/* Search */}
+      <Tab.Screen
+        name="Search"
+        component={SearchScreen}
+        options={{
+          tabBarIcon: ({ color, focused }) => (
+            <AppIcon name="magnify" size={focused ? 26 : 24} color={color} />
+          ),
+          tabBarLabel: 'Search',
+        }}
+      />
+
+      {/* CENTER POST BUTTON */}
+      <Tab.Screen
+        name="Post"
+        component={ReportItemScreen}
+        options={{
+          tabBarButton: (props) => (
+            <Pressable
+              style={styles.centerButton}
+              onPress={props.onPress}
+              android_ripple={{ color: 'rgba(26,110,219,0.3)', radius: 40 }}
+            >
+              <View style={styles.centerButtonInner}>
+                <AppIcon name="plus" size={32} color="#ffffff" />
+              </View>
+            </Pressable>
+          ),
+        }}
+      />
+
+      {/* Chat */}
+      <Tab.Screen
+        name="Chat"
+        component={ChatScreen}
+        options={{
+          tabBarIcon: ({ color, focused }) => (
+            <AppIcon name="message-outline" size={focused ? 26 : 24} color={color} />
+          ),
+          tabBarLabel: 'Chat',
+        }}
+      />
+
+      {/* Account / Profile */}
+      <Tab.Screen
+        name="Account"
+        component={AccountScreen}
+        options={{
+          tabBarIcon: ({ color, focused }) => (
+            <AppIcon name="account-circle-outline" size={focused ? 26 : 24} color={color} />
+          ),
+          tabBarLabel: 'Profile',
+        }}
+      />
+
+      {/* Admin (only for admins) */}
+      {isAdmin && (
+        <Tab.Screen
+          name="Admin"
+          component={AdminDashboardScreen}
+          options={{
+            tabBarIcon: ({ color, focused }) => (
+              <AppIcon name="shield-account-outline" size={focused ? 26 : 24} color={color} />
+            ),
+            tabBarLabel: 'Admin',
+          }}
+        />
+      )}
     </Tab.Navigator>
   );
 };
 
 const AuthStack = () => (
-  <Stack.Navigator initialRouteName="Login">
-    <Stack.Screen name="Login" component={LoginScreen} options={{ headerShown: false }} />
+  <Stack.Navigator initialRouteName="Login" screenOptions={{ headerShown: false }}>
+    <Stack.Screen name="Login" component={LoginScreen} />
     <Stack.Screen name="Register" component={RegisterScreen} options={{ title: 'Create Account' }} />
-    <Stack.Screen name="ItemDetail" component={ItemDetailScreen} options={{ title: 'Item Details' }} />
   </Stack.Navigator>
 );
 
 const AppStack = ({ isAdmin }) => (
-  <Stack.Navigator initialRouteName="Main">
+  <Stack.Navigator initialRouteName="Main" screenOptions={{ headerShadowVisible: false }}>
     <Stack.Screen name="Main" options={{ headerShown: false }}>
       {() => <MainTabs isAdmin={isAdmin} />}
     </Stack.Screen>
+
     <Stack.Screen name="ItemDetail" component={ItemDetailScreen} options={{ title: 'Item Details' }} />
-    <Stack.Screen name="Chat" component={ChatScreen} />
+    <Stack.Screen name="Verify" component={VerificationScreen} options={{ title: 'Verify Ownership' }} />
+    <Stack.Screen name="AlertsCenter" component={NotificationsScreen} options={{ title: 'Notifications' }} />
+    <Stack.Screen name="SavedItems" component={SavedItemsScreen} options={{ title: 'Saved Items' }} />
   </Stack.Navigator>
 );
 
@@ -95,13 +154,34 @@ const AppNavigator = () => {
 
   if (loading) {
     return (
-      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-        <ActivityIndicator size="large" />
+      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#f5f7fb' }}>
+        <ActivityIndicator size="large" color="#1a6edb" />
       </View>
     );
   }
 
   return user ? <AppStack isAdmin={isAdmin} /> : <AuthStack />;
 };
+
+const styles = StyleSheet.create({
+  centerButton: {
+    top: -18,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  centerButtonInner: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: '#1a6edb',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#1a6edb',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.3,
+    shadowRadius: 10,
+    elevation: 10,
+  },
+});
 
 export default AppNavigator;

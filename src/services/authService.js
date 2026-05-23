@@ -25,4 +25,14 @@ export const authService = {
     const { data } = await apiClient.put('/auth/password', payload);
     return data;
   },
+
+  async getAdminUsers(params = {}) {
+    const { data } = await apiClient.get('/auth/admin/users', { params });
+    return data;
+  },
+
+  async setUserSuspension(id, suspend, reason = '') {
+    const { data } = await apiClient.patch(`/auth/admin/users/${id}/suspension`, { suspend, reason });
+    return data;
+  },
 };

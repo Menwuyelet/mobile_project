@@ -2,16 +2,34 @@ import React from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import AppIcon from './AppIcon';
 
-const IconInput = ({ iconName, style, ...props }) => (
-  <View style={[styles.inputWrap, style]}>
-    <AppIcon name={iconName} size={16} color="#5f7a80" />
-    <TextInput
-      {...props}
-      style={styles.inputField}
-      placeholderTextColor="#6a7f86"
-    />
-  </View>
-);
+const C = {
+  blue: '#1a6edb',
+  card: '#ffffff',
+  border: '#e5e7eb',
+  text: '#111827',
+  muted: '#6b7280',
+};
+
+const IconInput = ({ iconName, style, value = '', onClear, ...props }) => {
+  const hasValue = Boolean(value);
+
+  return (
+    <View style={[styles.inputWrap, style]}>
+      <AppIcon name={iconName} size={18} color={C.muted} />
+      <TextInput
+        {...props}
+        value={value}
+        style={styles.inputField}
+        placeholderTextColor={C.muted}
+      />
+      {hasValue && onClear ? (
+        <Pressable style={styles.clearInputButton} onPress={onClear}>
+          <AppIcon name="close-circle" size={16} color={C.muted} />
+        </Pressable>
+      ) : null}
+    </View>
+  );
+};
 
 const StatusButton = ({ value, current, onSelect }) => {
   const active = value === current;
@@ -22,110 +40,157 @@ const StatusButton = ({ value, current, onSelect }) => {
       style={[styles.statusButton, active && styles.statusButtonActive]}
       onPress={() => onSelect(active ? '' : value)}
     >
-      <View style={styles.statusInner}>
-        <AppIcon name={iconName} size={14} color={active ? '#ffffff' : '#33545c'} />
-        <Text style={[styles.statusButtonText, active && styles.statusButtonTextActive]}>{value}</Text>
-      </View>
+      <AppIcon name={iconName} size={16} color={active ? '#ffffff' : C.muted} />
+      <Text style={[styles.statusButtonText, active && styles.statusButtonTextActive]}>
+        {value.toUpperCase()}
+      </Text>
     </Pressable>
   );
 };
 
-const FilterBar = ({ filters, onChange, onSearch, onReset }) => {
+const FilterBar = ({ filters, onChange, onSearch, onReset, loading = false }) => {
   return (
     <View style={styles.container}>
+      <View style={styles.headerRow}>
+        <View style={styles.headerLeft}>
+          <AppIcon name="tune-variant" size={16} color="#17424d" />
+          <Text style={styles.headerText}>Filters</Text>
+        </View>
+        <Pressable onPress={onReset} disabled={loading}>
+          <Text style={styles.clearAllText}>Clear all</Text>
+        </Pressable>
+      </View>
+
       <IconInput
-        iconName="magnify"
-        placeholder="Search by title, description, or location"
-        value={filters.keyword}
+        iconName="text-box-search-outline"
+        placeholder="Keyword"
+        value={filters.keyword || ''}
         onChangeText={(text) => onChange({ ...filters, keyword: text })}
+        autoCapitalize="none"
+        returnKeyType="search"
+        onSubmitEditing={onSearch}
+        onClear={() => onChange({ ...filters, keyword: '' })}
       />
 
       <IconInput
-        iconName="tag-outline"
+        iconName="tag-multiple-outline"
         placeholder="Category"
-        value={filters.category}
+        value={filters.category || ''}
         onChangeText={(text) => onChange({ ...filters, category: text })}
+        autoCapitalize="words"
+        returnKeyType="done"
+        onSubmitEditing={onSearch}
+        onClear={() => onChange({ ...filters, category: '' })}
       />
 
-      <View style={styles.row}>
-        <StatusButton value="lost" current={filters.status} onSelect={(status) => onChange({ ...filters, status })} />
+      <View style={styles.statusRow}>
+        <StatusButton
+          value="lost"
+          current={filters.status}
+          onSelect={(status) => onChange({ ...filters, status })}
+        />
         <StatusButton
           value="found"
           current={filters.status}
           onSelect={(status) => onChange({ ...filters, status })}
         />
-        <Pressable style={styles.resetButton} onPress={onReset}>
-          <View style={styles.actionInner}>
-            <AppIcon name="refresh" size={14} color="#34545c" />
-            <Text style={styles.resetButtonText}>Reset</Text>
-          </View>
-        </Pressable>
-        <Pressable style={styles.searchButton} onPress={onSearch}>
-          <View style={styles.actionInner}>
-            <AppIcon name="magnify" size={14} color="#ffffff" />
-            <Text style={styles.searchButtonText}>Search</Text>
-          </View>
-        </Pressable>
       </View>
+
+      <Pressable style={[styles.searchButton, loading && styles.searchButtonDisabled]} onPress={onSearch} disabled={loading}>
+        <AppIcon name="magnify" size={16} color="#ffffff" />
+        <Text style={styles.searchButtonText}>{loading ? 'Searching...' : 'Apply Filters'}</Text>
+      </Pressable>
     </View>
   );
 };
 
 const styles = StyleSheet.create({
-  container: { marginBottom: 10 },
-  inputWrap: {
+  container: {
+    backgroundColor: C.card,
+    borderRadius: 16,
+    padding: 14,
+    marginHorizontal: 12,
+    marginBottom: 12,
     borderWidth: 1,
-    borderColor: '#d8d8d8',
-    borderRadius: 10,
-    paddingHorizontal: 10,
-    minHeight: 42,
-    backgroundColor: '#fff',
-    marginBottom: 8,
+    borderColor: C.border,
+  },
+  headerRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    justifyContent: 'space-between',
+    marginBottom: 10,
+  },
+  headerLeft: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  headerText: { color: '#17424d', fontWeight: '800', fontSize: 13 },
+  clearAllText: { color: '#4b5563', fontSize: 12, fontWeight: '700' },
+
+  inputWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#f8fafc',
+    borderWidth: 1,
+    borderColor: C.border,
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    marginBottom: 10,
+    height: 46,
   },
   inputField: {
     flex: 1,
-    color: '#12343b',
-    paddingVertical: 8,
-    paddingHorizontal: 0,
+    marginLeft: 10,
+    fontSize: 14,
+    color: C.text,
   },
-  row: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 8 },
+  clearInputButton: { paddingLeft: 8, paddingVertical: 2 },
+
+  statusRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 10,
+  },
   statusButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 10,
     borderWidth: 1,
-    borderColor: '#d0d0d0',
-    borderRadius: 999,
-    paddingHorizontal: 12,
-    minHeight: 36,
+    borderColor: C.border,
     backgroundColor: '#fff',
-    minWidth: 72,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
-  statusInner: { flexDirection: 'row', alignItems: 'center', gap: 5 },
-  statusButtonActive: { backgroundColor: '#0b7285', borderColor: '#0b7285' },
-  statusButtonText: { textTransform: 'uppercase', color: '#33545c', fontWeight: '700', fontSize: 12 },
-  statusButtonTextActive: { color: '#fff' },
-  actionInner: { flexDirection: 'row', alignItems: 'center', gap: 5 },
-  resetButton: {
-    paddingHorizontal: 12,
-    minHeight: 36,
-    borderRadius: 8,
-    backgroundColor: '#dfe9ec',
-    alignItems: 'center',
-    justifyContent: 'center',
+  statusButtonActive: {
+    backgroundColor: C.blue,
+    borderColor: C.blue,
   },
-  resetButtonText: { color: '#34545c', fontWeight: '700', fontSize: 12 },
+  statusButtonText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: C.muted,
+    textTransform: 'uppercase',
+  },
+  statusButtonTextActive: {
+    color: '#ffffff',
+  },
+
   searchButton: {
-    paddingHorizontal: 14,
-    minHeight: 36,
-    borderRadius: 8,
-    backgroundColor: '#0b7285',
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    gap: 6,
+    paddingHorizontal: 18,
+    paddingVertical: 11,
+    borderRadius: 10,
+    backgroundColor: C.blue,
   },
-  searchButtonText: { color: '#fff', fontWeight: '700', fontSize: 12 },
+  searchButtonDisabled: { backgroundColor: '#8ea5c7' },
+  searchButtonText: {
+    color: '#ffffff',
+    fontWeight: '700',
+    fontSize: 13,
+  },
 });
 
 export default FilterBar;

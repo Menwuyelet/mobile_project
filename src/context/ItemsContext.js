@@ -54,31 +54,54 @@ export const ItemsProvider = ({ children }) => {
     await persistSavedItems([]);
   }, [persistSavedItems]);
 
+  const recordViewedItem = useCallback(async (item) => {
+    if (!item?._id) {
+      return;
+    }
+    const key = 'lf_recently_viewed_items';
+    const existing = await storageService.getJSON(key, []);
+    const safeExisting = Array.isArray(existing) ? existing : [];
+    const deduped = [item, ...safeExisting.filter((entry) => entry?._id !== item._id)].slice(0, 20);
+    await storageService.setJSON(key, deduped);
+  }, []);
+
   const loadLatest = useCallback(async (params = {}) => {
     setLoading(true);
+    const canUseCache = !params.page && !params.status && !params.keyword;
+    let cached = [];
 
     try {
-      const cached = await storageService.getJSON(storageService.keys.CACHED_REPORTS, []);
-      if (cached.length && !params.page && !params.status && !params.keyword) {
+      const cachedRaw = await storageService.getJSON(storageService.keys.CACHED_REPORTS, []);
+      cached = Array.isArray(cachedRaw) ? cachedRaw : [];
+
+      if (cached.length && canUseCache) {
         setItems(cached);
       }
 
       const data = await itemService.getLatestReports(params);
-      const nextItems = data.items || [];
+      const nextItems = Array.isArray(data?.items) ? data.items : [];
 
       setItems(nextItems);
-      if (!params.page && !params.status && !params.keyword) {
+      if (canUseCache) {
         await storageService.setJSON(storageService.keys.CACHED_REPORTS, nextItems);
       }
 
       const currentSaved = savedItemsRef.current;
       if (currentSaved.length) {
         const indexById = new Map(nextItems.map((entry) => [entry._id, entry]));
-        const refreshedSaved = currentSaved.map((saved) => indexById.get(saved._id) || saved);
+        const refreshedSaved = currentSaved
+          .map((saved) => indexById.get(saved._id) || saved)
+          .filter(Boolean);
         await persistSavedItems(refreshedSaved);
       }
 
       return nextItems;
+    } catch (error) {
+      if (cached.length && canUseCache) {
+        setItems(cached);
+        return cached;
+      }
+      throw error;
     } finally {
       setLoading(false);
     }
@@ -86,6 +109,12 @@ export const ItemsProvider = ({ children }) => {
 
   const createReport = useCallback(async (report) => {
     const data = await itemService.createReport(report);
+    await loadLatest();
+    return data;
+  }, [loadLatest]);
+
+  const updateReport = useCallback(async (id, patch) => {
+    const data = await itemService.updateReport(id, patch);
     await loadLatest();
     return data;
   }, [loadLatest]);
@@ -129,6 +158,23 @@ export const ItemsProvider = ({ children }) => {
     return data;
   }, [loadLatest]);
 
+  const requestClaim = useCallback(async (id, payload) => {
+    const data = await itemService.requestClaim(id, payload);
+    await loadLatest();
+    return data;
+  }, [loadLatest]);
+
+  const reviewClaim = useCallback(async (id, payload) => {
+    const data = await itemService.reviewClaim(id, payload);
+    await loadLatest();
+    return data;
+  }, [loadLatest]);
+
+  const getClaimContact = useCallback(async (id) => {
+    const data = await itemService.getClaimContact(id);
+    return data;
+  }, []);
+
   const value = useMemo(
     () => ({
       items,
@@ -136,15 +182,20 @@ export const ItemsProvider = ({ children }) => {
       loading,
       loadLatest,
       createReport,
+      updateReport,
       searchReports,
       getMatchesFor,
       markRecovered,
       flagReport,
       deleteReport,
       reviewFlaggedReport,
+      requestClaim,
+      reviewClaim,
+      getClaimContact,
       toggleSavedItem,
       isItemSaved,
       clearSavedItems,
+      recordViewedItem,
       getFlaggedReports: itemService.getFlaggedReports,
       getAdminStats: itemService.getAdminStats,
     }),
@@ -154,15 +205,20 @@ export const ItemsProvider = ({ children }) => {
       loading,
       loadLatest,
       createReport,
+      updateReport,
       searchReports,
       getMatchesFor,
       markRecovered,
       flagReport,
       deleteReport,
       reviewFlaggedReport,
+      requestClaim,
+      reviewClaim,
+      getClaimContact,
       toggleSavedItem,
       isItemSaved,
       clearSavedItems,
+      recordViewedItem,
     ]
   );
 

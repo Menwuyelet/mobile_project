@@ -1,86 +1,44 @@
 #!/bin/bash
 
-# Campus Lost & Found - Phone Installation Script
-# This script guides you through installing the app on your Android phone
+# Campus Lost & Found - Remote Phone Installation Script
+# Builds and installs the standalone release APK (no local Metro/backend needed).
 
-set -e
+set -euo pipefail
 
-echo "🚀 Campus Lost & Found - Installation Guide"
-echo "==========================================="
-echo ""
+APP_ID="com.campuslostfoundtemplate074"
+APK_PATH="android/app/build/outputs/apk/release/app-release.apk"
 
-# Step 1: Check ADB
-echo "📱 Step 1: Checking ADB Connection..."
-echo ""
-echo "Please connect your phone via USB and enable USB Debugging:"
-echo "  1. Go to Settings → About Phone"
-echo "  2. Tap 'Build Number' 7 times to enable Developer Mode"
-echo "  3. Go back to Settings → Developer Options"
-echo "  4. Enable 'USB Debugging'"
-echo "  5. Connect phone via USB"
-echo ""
-read -p "Press ENTER when your phone is connected..." 
+echo "Campus Lost & Found - Remote Install"
+echo "===================================="
+echo
 
-if ! command -v adb &> /dev/null; then
-    echo "❌ ADB not found. Please install Android SDK Platform-Tools"
-    echo "   Download from: https://developer.android.com/studio/releases/platform-tools"
-    exit 1
+if ! command -v adb >/dev/null 2>&1; then
+  echo "ADB not found. Install Android SDK Platform-Tools first."
+  echo "https://developer.android.com/studio/releases/platform-tools"
+  exit 1
 fi
 
-echo "Checking connected devices..."
+echo "Checking connected Android devices..."
+DEVICE_COUNT="$(adb devices | awk 'NR>1 && $2=="device" {count++} END {print count+0}')"
+if [ "${DEVICE_COUNT}" -eq 0 ]; then
+  echo "No authorized Android device found."
+  echo "Connect your phone with USB debugging enabled, then run this script again."
+  exit 1
+fi
 adb devices
+echo
 
-echo ""
-echo "✅ ADB is ready!"
-echo ""
+echo "Building release APK..."
+npm run apk:release
+echo "Release build complete."
+echo
 
-# Step 2: Build APK
-echo "🔨 Step 2: Building Debug APK..."
-echo "This may take 5-10 minutes..."
-echo ""
+echo "Installing release APK..."
+adb install -r "${APK_PATH}"
+echo "Install complete."
+echo
 
-cd /home/melkamu/Desktop/new/mobile_app
-
-npm run apk:debug
-
-if [ $? -eq 0 ]; then
-    echo "✅ APK built successfully!"
-else
-    echo "❌ APK build failed. Check the errors above."
-    exit 1
-fi
-
-echo ""
-
-# Step 3: Grant USB permission on phone
-echo "⚠️  Step 3: Grant USB Permission"
-echo "Look at your phone screen and tap 'Allow' when asked for USB Debugging permission"
-echo ""
-read -p "Press ENTER after granting permission on phone..."
-
-echo ""
-
-# Step 4: Install APK
-echo "📦 Step 4: Installing APK on Phone..."
-echo ""
-
-adb install -r android/app/build/outputs/apk/debug/app-debug.apk
-
-if [ $? -eq 0 ]; then
-    echo "✅ App installed successfully!"
-else
-    echo "❌ Installation failed. Try again with: adb install -r android/app/build/outputs/apk/debug/app-debug.apk"
-    exit 1
-fi
-
-echo ""
-echo "🎉 Installation Complete!"
-echo ""
-echo "📍 Next Steps:"
-echo "  1. Open the app on your phone to test"
-echo "  2. Start the backend server:"
-echo "     npm run server:dev"
-echo "  3. Start the Metro bundler (in another terminal):"
-echo "     npm start"
-echo ""
-echo "✨ Happy testing! 🚀"
+echo "Launching app..."
+adb shell am start -n "${APP_ID}/.MainActivity" >/dev/null 2>&1 || true
+echo
+echo "Done. App is installed in remote mode and uses hosted backend."

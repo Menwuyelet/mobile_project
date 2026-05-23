@@ -28,10 +28,28 @@ const userSchema = new mongoose.Schema(
       trim: true,
       default: '',
     },
+    phoneNumber: {
+      type: String,
+      trim: true,
+      default: '',
+    },
     role: {
       type: String,
       enum: ['user', 'admin'],
       default: 'user',
+    },
+    isSuspended: {
+      type: Boolean,
+      default: false,
+    },
+    suspendedAt: {
+      type: Date,
+      default: null,
+    },
+    suspensionReason: {
+      type: String,
+      trim: true,
+      default: '',
     },
   },
   { timestamps: true }

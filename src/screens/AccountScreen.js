@@ -2,7 +2,6 @@ import React, { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
-  Image,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -13,70 +12,50 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import AppIcon from '../components/AppIcon';
+import { DEFAULT_CAMPUS } from '../config/env';
 import { useAuth } from '../context/AuthContext';
 import { useItems } from '../context/ItemsContext';
-import { DEFAULT_CAMPUS } from '../config/env';
-import { imageService } from '../services/imageService';
-import { permissionsService } from '../services/permissionsService';
 import { storageService } from '../services/storageService';
 import { isValidEmail } from '../utils/validators';
-import AppIcon from '../components/AppIcon';
 
-const getInitials = (name = '') => {
-  const words = name.trim().split(/\s+/).filter(Boolean);
-  if (!words.length) {
-    return 'U';
-  }
-  return words
-    .slice(0, 2)
-    .map((word) => word[0].toUpperCase())
-    .join('');
+const C = {
+  blue: '#1a6edb',
+  white: '#ffffff',
+  bg: '#f5f7fb',
+  card: '#ffffff',
+  border: '#e5e7eb',
+  inputBorder: '#d1d5db',
+  text: '#111827',
+  textMuted: '#6b7280',
+  danger: '#b42318',
 };
 
-const toProfileImageValue = (asset) => {
-  if (!asset) {
-    return '';
-  }
-  if (asset.base64) {
-    const mime = asset.type || 'image/jpeg';
-    return `data:${mime};base64,${asset.base64}`;
-  }
-  return asset.uri || '';
-};
-
-const CompactButton = ({ label, iconName, onPress, loading, disabled, tone = 'neutral', style }) => {
-  const toneStyle =
-    tone === 'danger'
-      ? styles.compactButtonDanger
-      : tone === 'primary'
-        ? styles.compactButtonPrimary
-        : styles.compactButtonNeutral;
-  const toneTextStyle =
-    tone === 'danger'
-      ? styles.compactButtonDangerText
-      : tone === 'primary'
-        ? styles.compactButtonPrimaryText
-        : styles.compactButtonNeutralText;
-  const iconColor = tone === 'primary' ? '#ffffff' : tone === 'danger' ? '#9f3333' : '#21464f';
+const ActionButton = ({ label, icon, onPress, tone = 'neutral', loading, disabled }) => {
+  const toneStyles =
+    tone === 'primary'
+      ? { button: styles.primaryBtn, text: styles.primaryBtnText, icon: C.white }
+      : tone === 'danger'
+        ? { button: styles.dangerBtn, text: styles.dangerBtnText, icon: C.white }
+        : { button: styles.neutralBtn, text: styles.neutralBtnText, icon: C.text };
 
   return (
     <Pressable
-      style={({ pressed }) => [
-        styles.compactButton,
-        toneStyle,
-        style,
-        (disabled || loading) && styles.compactButtonDisabled,
-        pressed && !disabled && !loading && styles.compactButtonPressed,
-      ]}
       onPress={onPress}
       disabled={disabled || loading}
+      style={({ pressed }) => [
+        styles.actionBtn,
+        toneStyles.button,
+        (disabled || loading) && styles.btnDisabled,
+        pressed && !disabled && !loading && styles.btnPressed,
+      ]}
     >
       {loading ? (
-        <ActivityIndicator size="small" color={iconColor} />
+        <ActivityIndicator size="small" color={toneStyles.icon} />
       ) : (
-        <View style={styles.compactInner}>
-          {iconName ? <AppIcon name={iconName} size={14} color={iconColor} /> : null}
-          <Text style={[styles.compactButtonText, toneTextStyle]}>{label}</Text>
+        <View style={styles.actionInner}>
+          {icon ? <AppIcon name={icon} size={15} color={toneStyles.icon} /> : null}
+          <Text style={[styles.actionText, toneStyles.text]}>{label}</Text>
         </View>
       )}
     </Pressable>
@@ -85,12 +64,9 @@ const CompactButton = ({ label, iconName, onPress, loading, disabled, tone = 'ne
 
 const AccountScreen = () => {
   const { user, updateProfile, updatePassword, logout } = useAuth();
-  const { clearSavedItems } = useItems();
-  const [profileForm, setProfileForm] = useState({
-    name: '',
-    email: '',
-    avatarUrl: '',
-  });
+  const { savedItems, clearSavedItems } = useItems();
+
+  const [profileForm, setProfileForm] = useState({ name: '', email: '' });
   const [passwordForm, setPasswordForm] = useState({
     currentPassword: '',
     newPassword: '',
@@ -102,59 +78,22 @@ const AccountScreen = () => {
     setProfileForm({
       name: user?.name || '',
       email: user?.email || '',
-      avatarUrl: user?.avatarUrl || '',
     });
   }, [user]);
 
   const memberSince = useMemo(() => {
-    if (!user?.createdAt) {
-      return 'Unknown';
-    }
-    try {
-      return new Date(user.createdAt).toLocaleDateString();
-    } catch (_error) {
-      return 'Unknown';
-    }
+    if (!user?.createdAt) return 'Unknown';
+    const date = new Date(user.createdAt);
+    return Number.isNaN(date.getTime()) ? 'Unknown' : date.toLocaleDateString();
   }, [user?.createdAt]);
-
-  const updateProfileField = (patch) => setProfileForm((prev) => ({ ...prev, ...patch }));
-  const updatePasswordField = (patch) => setPasswordForm((prev) => ({ ...prev, ...patch }));
-
-  const chooseProfileImage = async (source) => {
-    const loadingKey = source === 'camera' ? 'cameraImage' : 'galleryImage';
-    setActionLoading(loadingKey);
-    try {
-      const allowed =
-        source === 'camera'
-          ? await permissionsService.requestCameraPermission()
-          : await permissionsService.requestGalleryPermission();
-      if (!allowed) {
-        Alert.alert('Permission', 'Permission is required to change profile image.');
-        return;
-      }
-
-      const asset =
-        source === 'camera'
-          ? await imageService.openCamera({ includeBase64: true })
-          : await imageService.openGallery({ includeBase64: true });
-      const avatarUrl = toProfileImageValue(asset);
-      if (!avatarUrl) {
-        return;
-      }
-      updateProfileField({ avatarUrl });
-    } catch (_error) {
-      Alert.alert('Image', 'Could not load image. Please try again.');
-    } finally {
-      setActionLoading('');
-    }
-  };
 
   const onSaveProfile = async () => {
     const payload = {
       name: profileForm.name.trim(),
       email: profileForm.email.trim(),
       campus: (user?.campus || DEFAULT_CAMPUS).trim(),
-      avatarUrl: profileForm.avatarUrl,
+      avatarUrl: user?.avatarUrl || '',
+      phoneNumber: user?.phoneNumber || '',
     };
 
     if (!payload.name) {
@@ -195,26 +134,15 @@ const AccountScreen = () => {
         currentPassword: passwordForm.currentPassword,
         newPassword: passwordForm.newPassword,
       });
-      setPasswordForm({
-        currentPassword: '',
-        newPassword: '',
-        confirmNewPassword: '',
-      });
+      setPasswordForm({ currentPassword: '', newPassword: '', confirmNewPassword: '' });
       Alert.alert('Success', 'Password updated successfully.');
     } finally {
       setActionLoading('');
     }
   };
 
-  const onLogout = () => {
-    Alert.alert('Logout', 'Are you sure you want to logout?', [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Logout', style: 'destructive', onPress: () => logout() },
-    ]);
-  };
-
   const onClearSavedItems = () => {
-    Alert.alert('Clear Saved Items', 'Remove all your bookmarked/saved items from this phone?', [
+    Alert.alert('Clear Saved Items', 'Remove all saved items from this phone?', [
       { text: 'Cancel', style: 'cancel' },
       {
         text: 'Clear',
@@ -233,182 +161,143 @@ const AccountScreen = () => {
   };
 
   const onClearDraftAndCache = () => {
-    Alert.alert(
-      'Clear Draft + Cache',
-      'This clears report draft and cached feed data on this phone. Continue?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Clear',
-          style: 'destructive',
-          onPress: async () => {
-            setActionLoading('clearCache');
-            try {
-              await Promise.all([
-                storageService.remove(storageService.keys.LAST_REPORT_DRAFT),
-                storageService.remove(storageService.keys.CACHED_REPORTS),
-              ]);
-              Alert.alert('Done', 'Draft and cache cleared.');
-            } finally {
-              setActionLoading('');
-            }
-          },
+    Alert.alert('Clear Draft + Cache', 'Clear local report draft and cached feed data?', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Clear',
+        style: 'destructive',
+        onPress: async () => {
+          setActionLoading('clearCache');
+          try {
+            await Promise.all([
+              storageService.remove(storageService.keys.LAST_REPORT_DRAFT),
+              storageService.remove(storageService.keys.CACHED_REPORTS),
+            ]);
+            Alert.alert('Done', 'Draft and cache cleared.');
+          } finally {
+            setActionLoading('');
+          }
         },
-      ]
-    );
+      },
+    ]);
+  };
+
+  const onLogout = () => {
+    Alert.alert('Sign Out', 'Are you sure you want to sign out?', [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Sign Out', style: 'destructive', onPress: () => logout() },
+    ]);
   };
 
   return (
     <SafeAreaView style={styles.root}>
-      <KeyboardAvoidingView style={styles.root} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.root}>
         <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
           <View style={styles.headerCard}>
-            <View style={styles.avatarWrap}>
-              {profileForm.avatarUrl ? (
-                <Image source={{ uri: profileForm.avatarUrl }} style={styles.avatarImage} />
-              ) : (
-                <Text style={styles.avatarInitials}>{getInitials(profileForm.name)}</Text>
-              )}
+            <Text style={styles.headerTitle}>My Profile</Text>
+            <Text style={styles.headerSub}>Simple account settings</Text>
+            <View style={styles.infoRow}>
+              <Text style={styles.infoLabel}>Role</Text>
+              <Text style={styles.infoValue}>{user?.role === 'admin' ? 'Admin' : 'User'}</Text>
             </View>
-            <View style={styles.nameRow}>
-              <AppIcon name="account-circle-outline" size={20} color="#143b44" />
-              <Text style={styles.nameText}>{profileForm.name || 'LAFMS User'}</Text>
+            <View style={styles.infoRow}>
+              <Text style={styles.infoLabel}>Saved Items</Text>
+              <Text style={styles.infoValue}>{savedItems.length}</Text>
             </View>
-            <View style={styles.metaRow}>
-              <AppIcon name="calendar-month-outline" size={14} color="#5f7a80" />
-              <Text style={styles.metaText}>Member since {memberSince}</Text>
-            </View>
-            <View style={styles.imageButtonsRow}>
-              <CompactButton
-                label="Camera"
-                iconName="camera-outline"
-                tone="neutral"
-                loading={actionLoading === 'cameraImage'}
-                onPress={() => chooseProfileImage('camera')}
-                style={styles.inlineCompact}
-              />
-              <CompactButton
-                label="Gallery"
-                iconName="image-outline"
-                tone="neutral"
-                loading={actionLoading === 'galleryImage'}
-                onPress={() => chooseProfileImage('gallery')}
-                style={styles.inlineCompact}
-              />
-              <CompactButton
-                label="Remove"
-                iconName="image-remove-outline"
-                tone="danger"
-                loading={false}
-                onPress={() => updateProfileField({ avatarUrl: '' })}
-                style={styles.inlineCompact}
-                disabled={Boolean(actionLoading)}
-              />
+            <View style={styles.infoRow}>
+              <Text style={styles.infoLabel}>Member Since</Text>
+              <Text style={styles.infoValue}>{memberSince}</Text>
             </View>
           </View>
 
           <View style={styles.card}>
-            <View style={styles.cardTitleRow}>
-              <AppIcon name="account-edit-outline" size={16} color="#123841" />
-              <Text style={styles.cardTitle}>Profile Settings</Text>
-            </View>
+            <Text style={styles.sectionTitle}>Profile Info</Text>
             <TextInput
               style={styles.input}
               placeholder="Full name"
-              placeholderTextColor="#6a7f86"
+              placeholderTextColor={C.textMuted}
               value={profileForm.name}
-              onChangeText={(name) => updateProfileField({ name })}
+              onChangeText={(name) => setProfileForm((prev) => ({ ...prev, name }))}
             />
             <TextInput
               style={styles.input}
               placeholder="Email"
-              placeholderTextColor="#6a7f86"
               keyboardType="email-address"
               autoCapitalize="none"
-              value={profileForm.email}
-              onChangeText={(email) => updateProfileField({ email })}
               autoCorrect={false}
+              placeholderTextColor={C.textMuted}
+              value={profileForm.email}
+              onChangeText={(email) => setProfileForm((prev) => ({ ...prev, email }))}
             />
-            <CompactButton
+            <ActionButton
               label="Save Profile"
-              iconName="content-save-outline"
+              icon="content-save-outline"
               tone="primary"
-              loading={actionLoading === 'saveProfile'}
               onPress={onSaveProfile}
+              loading={actionLoading === 'saveProfile'}
               disabled={Boolean(actionLoading) && actionLoading !== 'saveProfile'}
             />
           </View>
 
           <View style={styles.card}>
-            <View style={styles.cardTitleRow}>
-              <AppIcon name="shield-lock-outline" size={16} color="#123841" />
-              <Text style={styles.cardTitle}>Account Security</Text>
-            </View>
+            <Text style={styles.sectionTitle}>Change Password</Text>
             <TextInput
               style={styles.input}
               placeholder="Current password"
-              placeholderTextColor="#6a7f86"
               secureTextEntry
+              placeholderTextColor={C.textMuted}
               value={passwordForm.currentPassword}
-              onChangeText={(currentPassword) => updatePasswordField({ currentPassword })}
+              onChangeText={(currentPassword) => setPasswordForm((prev) => ({ ...prev, currentPassword }))}
             />
             <TextInput
               style={styles.input}
               placeholder="New password"
-              placeholderTextColor="#6a7f86"
               secureTextEntry
+              placeholderTextColor={C.textMuted}
               value={passwordForm.newPassword}
-              onChangeText={(newPassword) => updatePasswordField({ newPassword })}
+              onChangeText={(newPassword) => setPasswordForm((prev) => ({ ...prev, newPassword }))}
             />
             <TextInput
               style={styles.input}
               placeholder="Confirm new password"
-              placeholderTextColor="#6a7f86"
               secureTextEntry
+              placeholderTextColor={C.textMuted}
               value={passwordForm.confirmNewPassword}
-              onChangeText={(confirmNewPassword) => updatePasswordField({ confirmNewPassword })}
+              onChangeText={(confirmNewPassword) => setPasswordForm((prev) => ({ ...prev, confirmNewPassword }))}
             />
-            <CompactButton
-              label="Change Password"
-              iconName="lock-reset"
-              tone="primary"
-              loading={actionLoading === 'changePassword'}
+            <ActionButton
+              label="Update Password"
+              icon="lock-reset"
+              tone="neutral"
               onPress={onChangePassword}
+              loading={actionLoading === 'changePassword'}
               disabled={Boolean(actionLoading) && actionLoading !== 'changePassword'}
             />
           </View>
 
           <View style={styles.card}>
-            <View style={styles.cardTitleRow}>
-              <AppIcon name="cog-outline" size={16} color="#123841" />
-              <Text style={styles.cardTitle}>Account Actions</Text>
-            </View>
-            <View style={styles.actionsStack}>
-              <CompactButton
-                label="Clear Saved Items"
-                iconName="bookmark-remove-outline"
-                tone="neutral"
-                loading={actionLoading === 'clearSaved'}
-                onPress={onClearSavedItems}
-                disabled={Boolean(actionLoading) && actionLoading !== 'clearSaved'}
-              />
-              <CompactButton
-                label="Clear Draft + Cache"
-                iconName="broom"
-                tone="neutral"
-                loading={actionLoading === 'clearCache'}
-                onPress={onClearDraftAndCache}
-                disabled={Boolean(actionLoading) && actionLoading !== 'clearCache'}
-              />
-              <CompactButton
-                label="Sign Out"
-                iconName="logout"
-                tone="danger"
-                loading={false}
-                onPress={onLogout}
-                disabled={Boolean(actionLoading)}
-              />
-            </View>
+            <Text style={styles.sectionTitle}>Phone Storage</Text>
+            <ActionButton
+              label="Clear Saved Items"
+              icon="bookmark-remove-outline"
+              tone="neutral"
+              onPress={onClearSavedItems}
+              loading={actionLoading === 'clearSaved'}
+              disabled={Boolean(actionLoading) && actionLoading !== 'clearSaved'}
+            />
+            <ActionButton
+              label="Clear Draft + Cache"
+              icon="broom"
+              tone="neutral"
+              onPress={onClearDraftAndCache}
+              loading={actionLoading === 'clearCache'}
+              disabled={Boolean(actionLoading) && actionLoading !== 'clearCache'}
+            />
+          </View>
+
+          <View style={styles.card}>
+            <Text style={styles.sectionTitle}>Session</Text>
+            <ActionButton label="Sign Out" icon="logout" tone="danger" onPress={onLogout} disabled={Boolean(actionLoading)} />
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -417,76 +306,60 @@ const AccountScreen = () => {
 };
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: '#f4f8fa' },
-  content: { padding: 14, paddingBottom: 24, gap: 12 },
+  root: { flex: 1, backgroundColor: C.bg },
+  content: { padding: 14, paddingBottom: 30, gap: 12 },
+
   headerCard: {
     backgroundColor: '#ffffff',
-    borderRadius: 14,
     borderWidth: 1,
-    borderColor: '#d9e7ea',
+    borderColor: C.border,
+    borderRadius: 16,
     padding: 14,
-    alignItems: 'center',
   },
-  avatarWrap: {
-    width: 92,
-    height: 92,
-    borderRadius: 46,
-    backgroundColor: '#d7edf2',
-    alignItems: 'center',
-    justifyContent: 'center',
-    overflow: 'hidden',
-    borderWidth: 2,
-    borderColor: '#9cc3cd',
-  },
-  avatarImage: { width: '100%', height: '100%' },
-  avatarInitials: { fontSize: 34, fontWeight: '800', color: '#184650' },
-  nameRow: { marginTop: 10, flexDirection: 'row', alignItems: 'center', gap: 6 },
-  nameText: { fontSize: 20, fontWeight: '800', color: '#143b44' },
-  metaRow: { marginTop: 4, flexDirection: 'row', alignItems: 'center', gap: 5 },
-  metaText: { color: '#5f7a80' },
-  imageButtonsRow: { marginTop: 12, flexDirection: 'row', gap: 8 },
-  inlineCompact: {
-    flex: 1,
-  },
-  compactButton: {
-    borderWidth: 1,
-    borderRadius: 8,
-    minHeight: 40,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingVertical: 9,
-    paddingHorizontal: 12,
-  },
-  compactButtonPressed: { opacity: 0.75 },
-  compactButtonDisabled: { opacity: 0.6 },
-  compactButtonNeutral: { borderColor: '#c0d6dc', backgroundColor: '#f7fcfd' },
-  compactButtonPrimary: { borderColor: '#0b7285', backgroundColor: '#0b7285' },
-  compactButtonDanger: { borderColor: '#e3b1b1', backgroundColor: '#fff6f6' },
-  compactInner: { flexDirection: 'row', alignItems: 'center', gap: 5 },
-  compactButtonText: { fontWeight: '700', fontSize: 13, lineHeight: 16 },
-  compactButtonNeutralText: { color: '#21464f' },
-  compactButtonPrimaryText: { color: '#ffffff' },
-  compactButtonDangerText: { color: '#9f3333' },
+  headerTitle: { color: C.text, fontWeight: '800', fontSize: 24 },
+  headerSub: { color: C.textMuted, marginTop: 4, marginBottom: 10 },
+  infoRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 6 },
+  infoLabel: { color: C.textMuted, fontWeight: '600' },
+  infoValue: { color: C.text, fontWeight: '700' },
+
   card: {
-    backgroundColor: '#ffffff',
-    borderRadius: 14,
+    backgroundColor: C.card,
     borderWidth: 1,
-    borderColor: '#d9e7ea',
+    borderColor: C.border,
+    borderRadius: 16,
     padding: 14,
+    gap: 10,
   },
-  cardTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 10 },
-  cardTitle: { fontSize: 17, fontWeight: '800', color: '#123841' },
+  sectionTitle: { fontSize: 16, fontWeight: '800', color: C.text },
+
   input: {
     borderWidth: 1,
-    borderColor: '#d2dde1',
-    borderRadius: 8,
-    paddingHorizontal: 10,
-    paddingVertical: 10,
-    marginBottom: 10,
-    color: '#12343b',
+    borderColor: C.inputBorder,
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: Platform.OS === 'ios' ? 12 : 10,
+    color: C.text,
+    fontSize: 15,
     backgroundColor: '#fff',
   },
-  actionsStack: { gap: 8 },
+
+  actionBtn: {
+    borderRadius: 12,
+    minHeight: 44,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+  },
+  actionInner: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  actionText: { fontWeight: '700', fontSize: 14 },
+  primaryBtn: { backgroundColor: C.blue, borderColor: C.blue },
+  primaryBtnText: { color: C.white },
+  neutralBtn: { backgroundColor: '#eef4fb', borderColor: '#d7e5f6' },
+  neutralBtnText: { color: '#18416c' },
+  dangerBtn: { backgroundColor: C.danger, borderColor: C.danger },
+  dangerBtnText: { color: C.white },
+  btnDisabled: { opacity: 0.55 },
+  btnPressed: { opacity: 0.86 },
 });
 
 export default AccountScreen;
