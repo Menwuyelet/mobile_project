@@ -54,7 +54,7 @@ const buildListQuery = (query) => {
 
   // By default, exclude archived items unless explicitly requested
   if (query.includeArchived !== 'true') {
-    filter.archivedAt = { $exists: false };
+    filter.status = { $ne: 'archived' };
   }
 
   if (query.status && ALLOWED_STATUSES.includes(query.status)) {
@@ -102,6 +102,45 @@ const buildListQuery = (query) => {
   return filter;
 };
 
+const mergeWithVisibility = (baseFilter, visibilityClause) => {
+  const nextFilter = { ...baseFilter };
+
+  if (nextFilter.$and) {
+    nextFilter.$and = [...nextFilter.$and, visibilityClause];
+    return nextFilter;
+  }
+
+  return { $and: [nextFilter, visibilityClause] };
+};
+
+const applyRoleAwareVisibility = ({ baseFilter, user, query = {} }) => {
+  const isAdmin = user?.role === 'admin';
+
+  if (isAdmin) {
+    const approvalStatus = trimString(query.approvalStatus).toLowerCase();
+    if (['pending', 'approved', 'rejected'].includes(approvalStatus)) {
+      return { ...baseFilter, approvalStatus };
+    }
+    return baseFilter;
+  }
+
+  const visibilityClauses = [
+    {
+      reporterRole: { $ne: 'admin' },
+      $or: [{ approvalStatus: 'approved' }, { approvalStatus: { $exists: false } }],
+    },
+  ];
+
+  if (user?._id) {
+    if (query.onlyMine === 'true') {
+      return { ...baseFilter, reportedBy: user._id };
+    }
+    visibilityClauses.push({ reportedBy: user._id });
+  }
+
+  return mergeWithVisibility(baseFilter, { $or: visibilityClauses });
+};
+
 const notifyPotentialMatches = async (newItem) => {
   const oppositeStatus = newItem.status === 'lost' ? 'found' : 'lost';
 
@@ -143,6 +182,27 @@ const notifyPotentialMatches = async (newItem) => {
 
   if (notifications.length) {
     await Notification.insertMany(notifications, { ordered: false });
+  }
+};
+
+const notifyAdminsForPendingApproval = async (item, reporter) => {
+  try {
+    const admins = await User.find({ role: 'admin', isSuspended: { $ne: true } }).select('_id');
+    if (!admins.length) {
+      return;
+    }
+
+    const notifications = admins.map((admin) => ({
+      userId: admin._id,
+      type: 'moderation',
+      title: 'New report pending approval',
+      body: `${reporter?.name || 'A user'} submitted "${item.title}".`,
+      meta: { itemId: item._id, approvalStatus: item.approvalStatus },
+    }));
+
+    await Notification.insertMany(notifications, { ordered: false });
+  } catch (error) {
+    console.error('Pending-approval notification failure:', error.message);
   }
 };
 
@@ -195,11 +255,21 @@ const createItem = async (req, res, next) => {
       imageUrl,
       secretQuestions,
       reportedBy: req.user._id,
+      reporterRole: req.user.role === 'admin' ? 'admin' : 'user',
+      approvalStatus: req.user.role === 'admin' ? 'approved' : 'pending',
+      approvedBy: req.user.role === 'admin' ? req.user._id : null,
+      approvedAt: req.user.role === 'admin' ? new Date() : null,
+      approvalNote: req.user.role === 'admin' ? 'Auto-approved for admin post.' : '',
     });
 
     notifyPotentialMatches(created).catch((err) => {
       console.error('Potential match notification failure:', err.message);
     });
+    if (req.user.role !== 'admin') {
+      notifyAdminsForPendingApproval(created, req.user).catch((err) => {
+        console.error('Admin approval notification failure:', err.message);
+      });
+    }
 
     const item = await Item.findById(created._id).populate('reportedBy', '_id name email campus role');
     return res.status(201).json({ item });
@@ -210,7 +280,12 @@ const createItem = async (req, res, next) => {
 
 const listItems = async (req, res, next) => {
   try {
-    const filter = buildListQuery(req.query);
+    const rawFilter = buildListQuery(req.query);
+    const filter = applyRoleAwareVisibility({
+      baseFilter: rawFilter,
+      user: req.user || null,
+      query: req.query || {},
+    });
     const page = Math.max(Number(req.query.page) || 1, 1);
     const limit = Math.min(Math.max(Number(req.query.limit) || 30, 1), 100);
 
@@ -222,14 +297,30 @@ const listItems = async (req, res, next) => {
         .limit(limit),
       Item.countDocuments(filter),
     ]);
+    const isAdminRequester = req.user?.role === 'admin';
+    const visibleItems = isAdminRequester
+      ? items
+      : items.filter((entry) => {
+          const isOwner =
+            req.user?._id && entry.reportedBy?._id?.toString() === req.user._id.toString();
+          if (isOwner) {
+            return true;
+          }
+
+          const reporterRole = entry.reporterRole || entry.reportedBy?.role || 'user';
+          const approvalStatus = entry.approvalStatus || 'approved';
+          return approvalStatus === 'approved' && reporterRole !== 'admin';
+        });
+    const hiddenOnPage = Math.max(0, items.length - visibleItems.length);
+    const visibleTotal = isAdminRequester ? total : Math.max(0, total - hiddenOnPage);
 
     return res.json({
-      items,
+      items: visibleItems,
       pagination: {
         page,
         limit,
-        total,
-        totalPages: Math.max(Math.ceil(total / limit), 1),
+        total: visibleTotal,
+        totalPages: Math.max(Math.ceil(visibleTotal / limit), 1),
       },
     });
   } catch (error) {
@@ -248,6 +339,15 @@ const getItemById = async (req, res, next) => {
       .populate('reportedBy', '_id name email campus role phoneNumber')
       .populate('claim.requester', '_id name email campus');
     if (!item) {
+      return res.status(404).json({ message: 'Item not found.' });
+    }
+
+    const isAdmin = req.user?.role === 'admin';
+    const isOwner = req.user?._id && item.reportedBy?._id?.toString() === req.user._id.toString();
+    const approvalStatus = item.approvalStatus || 'approved';
+    const reporterRole = item.reporterRole || item.reportedBy?.role || 'user';
+    const isPubliclyVisible = approvalStatus === 'approved' && reporterRole !== 'admin';
+    if (!isAdmin && !isOwner && !isPubliclyVisible) {
       return res.status(404).json({ message: 'Item not found.' });
     }
 
@@ -276,30 +376,37 @@ const updateItem = async (req, res, next) => {
     const nextImageUrl = trimString(req.body.imageUrl);
     const nextLocation = req.body.location ? parseLocation(req.body.location) : item.location;
     const requestedStatus = trimString(req.body.status).toLowerCase();
+    let requiresReapproval = false;
 
     if (nextTitle) {
       if (nextTitle.length < 3) {
         return res.status(400).json({ message: 'Title must be at least 3 characters.' });
       }
       item.title = nextTitle;
+      requiresReapproval = true;
     }
     if (nextDescription) {
       if (nextDescription.length < 10) {
         return res.status(400).json({ message: 'Description must be at least 10 characters.' });
       }
       item.description = nextDescription;
+      requiresReapproval = true;
     }
     if (nextCategory) {
       item.category = nextCategory;
+      requiresReapproval = true;
     }
     if (nextLocationText || req.body.locationText === '') {
       item.locationText = nextLocationText;
+      requiresReapproval = true;
     }
     if (nextImageUrl || req.body.imageUrl === '') {
       item.imageUrl = nextImageUrl;
+      requiresReapproval = true;
     }
     if (nextLocation) {
       item.location = nextLocation;
+      requiresReapproval = true;
     }
     if (requestedStatus && ALLOWED_STATUSES.includes(requestedStatus)) {
       item.status = requestedStatus;
@@ -317,6 +424,14 @@ const updateItem = async (req, res, next) => {
         }))
       );
       item.secretQuestions = hashedQuestions;
+      requiresReapproval = true;
+    }
+
+    if (req.user.role !== 'admin' && requiresReapproval) {
+      item.approvalStatus = 'pending';
+      item.approvedBy = null;
+      item.approvedAt = null;
+      item.approvalNote = 'Awaiting admin approval after edit.';
     }
 
     await item.save();
@@ -569,6 +684,48 @@ const getFlaggedItems = async (req, res, next) => {
   }
 };
 
+const getPendingApprovalItems = async (req, res, next) => {
+  try {
+    const page = Math.max(Number(req.query.page) || 1, 1);
+    const limit = Math.min(Math.max(Number(req.query.limit) || 30, 1), 100);
+    const keyword = trimString(req.query.keyword);
+    const filter = { approvalStatus: 'pending' };
+
+    if (keyword) {
+      const safeKeyword = escapeRegExp(keyword);
+      const keywordRegex = new RegExp(safeKeyword, 'i');
+      filter.$or = [
+        { title: keywordRegex },
+        { description: keywordRegex },
+        { category: keywordRegex },
+        { campus: keywordRegex },
+        { locationText: keywordRegex },
+      ];
+    }
+
+    const [items, total] = await Promise.all([
+      Item.find(filter)
+        .populate('reportedBy', '_id name email campus role')
+        .sort({ createdAt: -1 })
+        .skip((page - 1) * limit)
+        .limit(limit),
+      Item.countDocuments(filter),
+    ]);
+
+    return res.json({
+      items,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.max(Math.ceil(total / limit), 1),
+      },
+    });
+  } catch (error) {
+    return next(error);
+  }
+};
+
 const reviewFlaggedItem = async (req, res, next) => {
   try {
     const { id } = req.params;
@@ -619,6 +776,51 @@ const reviewFlaggedItem = async (req, res, next) => {
   }
 };
 
+const reviewItemApproval = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const action = trimString(req.body.action).toLowerCase();
+    const note = trimString(req.body.note);
+
+    if (!['approve', 'reject'].includes(action)) {
+      return res.status(400).json({ message: 'Action must be either approve or reject.' });
+    }
+
+    const item = await Item.findById(id);
+    if (!item) {
+      return res.status(404).json({ message: 'Item not found.' });
+    }
+
+    item.approvalStatus = action === 'approve' ? 'approved' : 'rejected';
+    item.approvedBy = req.user._id;
+    item.approvedAt = new Date();
+    item.approvalNote = note;
+
+    await item.save();
+
+    if (item.reportedBy?.toString() !== req.user._id.toString()) {
+      await Notification.create({
+        userId: item.reportedBy,
+        type: 'moderation',
+        title: action === 'approve' ? 'Report approved' : 'Report rejected',
+        body:
+          action === 'approve'
+            ? 'Admin approved your report. It is now visible on the public feed.'
+            : 'Admin rejected your report. Please review and edit your details.',
+        meta: { itemId: item._id, approvalStatus: item.approvalStatus },
+      });
+    }
+
+    const updated = await Item.findById(item._id)
+      .populate('reportedBy', '_id name email campus role phoneNumber')
+      .populate('claim.requester', '_id name email campus');
+
+    return res.json({ item: updated });
+  } catch (error) {
+    return next(error);
+  }
+};
+
 const deleteItem = async (req, res, next) => {
   try {
     const { id } = req.params;
@@ -654,6 +856,8 @@ const getPotentialMatches = async (req, res, next) => {
       status: targetStatus,
       campus: item.campus,
       category: item.category,
+      reporterRole: { $ne: 'admin' },
+      $or: [{ approvalStatus: 'approved' }, { approvalStatus: { $exists: false } }],
     })
       .populate('reportedBy', '_id name email campus role')
       .sort({ createdAt: -1 })
@@ -687,6 +891,8 @@ const getAdminStats = async (_req, res, next) => {
       todayReports,
       pendingClaims,
       approvedClaims,
+      pendingApprovals,
+      rejectedApprovals,
       topLostCategory,
     ] = await Promise.all([
       User.countDocuments(),
@@ -699,6 +905,8 @@ const getAdminStats = async (_req, res, next) => {
       Item.countDocuments({ createdAt: { $gte: todayStart } }),
       Item.countDocuments({ 'claim.status': 'pending' }),
       Item.countDocuments({ 'claim.status': 'approved' }),
+      Item.countDocuments({ approvalStatus: 'pending' }),
+      Item.countDocuments({ approvalStatus: 'rejected' }),
       Item.aggregate([
         { $match: { status: 'lost' } },
         { $group: { _id: '$category', count: { $sum: 1 } } },
@@ -719,6 +927,8 @@ const getAdminStats = async (_req, res, next) => {
         todayReports,
         pendingClaims,
         approvedClaims,
+        pendingApprovals,
+        rejectedApprovals,
         mostLostCategory: topLostCategory?.[0]?._id || 'N/A',
         mostLostCategoryCount: topLostCategory?.[0]?.count || 0,
       },
@@ -739,7 +949,9 @@ module.exports = {
   markRecovered,
   flagItem,
   getFlaggedItems,
+  getPendingApprovalItems,
   reviewFlaggedItem,
+  reviewItemApproval,
   deleteItem,
   getPotentialMatches,
   getAdminStats,

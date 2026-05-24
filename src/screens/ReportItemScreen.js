@@ -158,7 +158,12 @@ const ReportItemScreen = ({ navigation }) => {
       skipDraft.current = true;
       setForm(defaultForm);
       await storageService.remove(storageService.keys.LAST_REPORT_DRAFT);
-      Alert.alert('Success', 'Report posted successfully!');
+      Alert.alert(
+        'Success',
+        user?.role === 'admin'
+          ? 'Report posted and visible now.'
+          : 'Report submitted. It will be visible after admin approval.'
+      );
     } catch (e) {
       Alert.alert('Failed', e?.response?.data?.message || 'Could not post report.');
     } finally {

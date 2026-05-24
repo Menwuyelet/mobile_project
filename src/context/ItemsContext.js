@@ -158,6 +158,12 @@ export const ItemsProvider = ({ children }) => {
     return data;
   }, [loadLatest]);
 
+  const reviewItemApproval = useCallback(async (id, action, note) => {
+    const data = await itemService.reviewItemApproval(id, action, note);
+    await loadLatest();
+    return data;
+  }, [loadLatest]);
+
   const requestClaim = useCallback(async (id, payload) => {
     const data = await itemService.requestClaim(id, payload);
     await loadLatest();
@@ -189,6 +195,7 @@ export const ItemsProvider = ({ children }) => {
       flagReport,
       deleteReport,
       reviewFlaggedReport,
+      reviewItemApproval,
       requestClaim,
       reviewClaim,
       getClaimContact,
@@ -197,6 +204,7 @@ export const ItemsProvider = ({ children }) => {
       clearSavedItems,
       recordViewedItem,
       getFlaggedReports: itemService.getFlaggedReports,
+      getPendingApprovalReports: itemService.getPendingApprovalReports,
       getAdminStats: itemService.getAdminStats,
     }),
     [
@@ -212,6 +220,7 @@ export const ItemsProvider = ({ children }) => {
       flagReport,
       deleteReport,
       reviewFlaggedReport,
+      reviewItemApproval,
       requestClaim,
       reviewClaim,
       getClaimContact,

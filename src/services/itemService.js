@@ -31,6 +31,32 @@ export const itemService = {
     return data;
   },
 
+  async getPendingApprovalReports(params = {}) {
+    try {
+      const { data } = await apiClient.get('/items/approval/pending', { params });
+      return data;
+    } catch (error) {
+      if (error?.response?.status !== 404) {
+        throw error;
+      }
+
+      // Backward-compatible fallback for older backend deployments
+      // that do not yet expose /items/approval/pending.
+      const { data } = await apiClient.get('/items', { params });
+      const items = Array.isArray(data?.items) ? data.items : [];
+      const pendingItems = items.filter((item) => String(item?.approvalStatus || '').toLowerCase() === 'pending');
+      return {
+        items: pendingItems,
+        pagination: data?.pagination || {
+          page: 1,
+          limit: pendingItems.length,
+          total: pendingItems.length,
+          totalPages: 1,
+        },
+      };
+    }
+  },
+
   async getAdminStats() {
     const { data } = await apiClient.get('/items/admin/stats');
     return data;
@@ -38,6 +64,11 @@ export const itemService = {
 
   async reviewFlaggedReport(id, action, note = '') {
     const { data } = await apiClient.patch(`/items/${id}/review`, { action, note });
+    return data;
+  },
+
+  async reviewItemApproval(id, action, note = '') {
+    const { data } = await apiClient.patch(`/items/${id}/approval`, { action, note });
     return data;
   },
 

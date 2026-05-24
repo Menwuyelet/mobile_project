@@ -59,6 +59,31 @@ const itemSchema = new mongoose.Schema(
       ref: 'User',
       required: true,
     },
+    reporterRole: {
+      type: String,
+      enum: ['user', 'admin'],
+      default: 'user',
+    },
+    approvalStatus: {
+      type: String,
+      enum: ['pending', 'approved', 'rejected'],
+      default: 'pending',
+      index: true,
+    },
+    approvedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      default: null,
+    },
+    approvedAt: {
+      type: Date,
+      default: null,
+    },
+    approvalNote: {
+      type: String,
+      trim: true,
+      default: '',
+    },
     claim: {
       status: {
         type: String,

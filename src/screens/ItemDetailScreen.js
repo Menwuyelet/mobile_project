@@ -112,7 +112,7 @@ const ItemDetailScreen = ({ route, navigation }) => {
   const { user } = useAuth();
   const {
     markRecovered, flagReport, deleteReport, getMatchesFor,
-    requestClaim, reviewClaim, getClaimContact,
+    requestClaim, reviewClaim, getClaimContact, reviewItemApproval,
     toggleSavedItem, isItemSaved, recordViewedItem,
   } = useItems();
 
@@ -171,6 +171,7 @@ const ItemDetailScreen = ({ route, navigation }) => {
   const isRecovered = item?.status === 'recovered' || item?.status === 'returned';
   const saved = isItemSaved(item?._id);
   const claimStatus = item?.claim?.status || 'none';
+  const approvalStatus = item?.approvalStatus || 'pending';
   const claimReqId = typeof item?.claim?.requester === 'string' ? item.claim.requester : item?.claim?.requester?._id;
   const isClaimRequester = !isGuest && claimReqId === user?._id;
   const canRequestClaim = !isGuest && !isOwner && item?.status === 'found' &&
@@ -263,6 +264,20 @@ const ItemDetailScreen = ({ route, navigation }) => {
     finally { setClaimLoading(false); }
   };
 
+  const onReviewApproval = async (action) => {
+    setClaimLoading(true);
+    try {
+      await reviewItemApproval(item._id, action, action === 'approve' ? 'Approved by admin' : 'Rejected by admin');
+      const d = await itemService.getById(item._id);
+      setItem(d.item || item);
+      Alert.alert('Done', action === 'approve' ? 'Report approved.' : 'Report rejected.');
+    } catch (e) {
+      Alert.alert('Failed', e?.response?.data?.message || 'Could not update approval status.');
+    } finally {
+      setClaimLoading(false);
+    }
+  };
+
   const onRevealContact = async () => {
     setClaimLoading(true);
     try {
@@ -324,6 +339,13 @@ const ItemDetailScreen = ({ route, navigation }) => {
         <View style={s.titleBlock}>
           <Text style={s.title}>{item.title || 'Item Details'}</Text>
           <Text style={s.desc}>{item.description || 'No description provided.'}</Text>
+          {approvalStatus !== 'approved' && (
+            <View style={[s.approvalBadge, approvalStatus === 'pending' ? s.approvalPending : s.approvalRejected]}>
+              <Text style={[s.approvalBadgeText, approvalStatus === 'pending' ? s.approvalPendingText : s.approvalRejectedText]}>
+                {approvalStatus === 'pending' ? 'Pending Admin Approval' : 'Rejected By Admin'}
+              </Text>
+            </View>
+          )}
         </View>
 
         {/* ── Details grid ── */}
@@ -406,6 +428,26 @@ const ItemDetailScreen = ({ route, navigation }) => {
               <OptionCard iconName="delete-outline" title="Delete Report"
                 subtitle="Permanently remove from the feed." onPress={onDelete} tone="danger" />
             )}
+            {user?.role === 'admin' && approvalStatus === 'pending' && (
+              <>
+                <OptionCard
+                  iconName="check-circle-outline"
+                  title={claimLoading ? 'Working…' : 'Approve Report'}
+                  subtitle="Make this report visible on public home feed."
+                  onPress={() => onReviewApproval('approve')}
+                  tone="success"
+                  disabled={claimLoading}
+                />
+                <OptionCard
+                  iconName="close-circle-outline"
+                  title={claimLoading ? 'Working…' : 'Reject Report'}
+                  subtitle="Hide this report from user home feed."
+                  onPress={() => onReviewApproval('reject')}
+                  tone="danger"
+                  disabled={claimLoading}
+                />
+              </>
+            )}
           </View>
         )}
 
@@ -482,6 +524,18 @@ const s = StyleSheet.create({
   titleBlock: { paddingHorizontal: 14, paddingTop: 14, paddingBottom: 4 },
   title: { fontSize: 22, fontWeight: '800', color: C.textDark, marginBottom: 6 },
   desc: { fontSize: 13, color: C.textMid, lineHeight: 20 },
+  approvalBadge: {
+    alignSelf: 'flex-start',
+    marginTop: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 999,
+  },
+  approvalBadgeText: { fontSize: 11, fontWeight: '800' },
+  approvalPending: { backgroundColor: '#fff7ed' },
+  approvalPendingText: { color: '#9a3412' },
+  approvalRejected: { backgroundColor: '#ffe4e6' },
+  approvalRejectedText: { color: '#9f1239' },
 
   /* Section header */
   secTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 14 },

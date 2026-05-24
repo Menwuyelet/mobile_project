@@ -1,11 +1,17 @@
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 
-const requireAuth = async (req, res, next) => {
-  const authHeader = req.headers.authorization || '';
+const resolveBearerToken = (authHeader = '') => {
   const [scheme, token] = authHeader.split(' ');
-
   if (scheme !== 'Bearer' || !token) {
+    return '';
+  }
+  return token;
+};
+
+const requireAuth = async (req, res, next) => {
+  const token = resolveBearerToken(req.headers.authorization || '');
+  if (!token) {
     return res.status(401).json({ message: 'Authentication required.' });
   }
 
@@ -27,6 +33,30 @@ const requireAuth = async (req, res, next) => {
   }
 };
 
+const optionalAuth = async (req, _res, next) => {
+  const token = resolveBearerToken(req.headers.authorization || '');
+  if (!token) {
+    req.user = null;
+    return next();
+  }
+
+  try {
+    const payload = jwt.verify(token, process.env.JWT_SECRET);
+    const user = await User.findById(payload.sub).select('-passwordHash');
+
+    if (!user || user.isSuspended) {
+      req.user = null;
+      return next();
+    }
+
+    req.user = user;
+    return next();
+  } catch (_error) {
+    req.user = null;
+    return next();
+  }
+};
+
 const requireAdmin = (req, res, next) => {
   if (!req.user || req.user.role !== 'admin') {
     return res.status(403).json({ message: 'Admin role required.' });
@@ -34,4 +64,4 @@ const requireAdmin = (req, res, next) => {
   next();
 };
 
-module.exports = { requireAuth, requireAdmin };
+module.exports = { requireAuth, optionalAuth, requireAdmin };

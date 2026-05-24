@@ -113,14 +113,43 @@ const FlagCard = ({ item, busy, onKeep, onClear, onDelete }) => {
   );
 };
 
+const PendingApprovalCard = ({ item, busy, onApprove, onReject }) => (
+  <View style={styles.card}>
+    <View style={styles.cardTop}>
+      <Text style={styles.cardTitle} numberOfLines={1}>{item.title || 'Untitled Report'}</Text>
+      <View style={[styles.statusBadge, { backgroundColor: '#fff7ed' }]}>
+        <Text style={[styles.statusBadgeText, { color: '#9a3412' }]}>PENDING</Text>
+      </View>
+    </View>
+
+    <Text style={styles.metaLine}>Reporter: {item?.reportedBy?.name || 'Unknown'}</Text>
+    <Text style={styles.metaLine}>Category: {item?.category || 'Unknown'}</Text>
+    <Text style={styles.metaLine}>Posted: {fmt(item.createdAt)}</Text>
+
+    <View style={styles.actionsRow}>
+      <ActionButton icon="check-circle-outline" label="Approve" tone="success" onPress={onApprove} disabled={busy} loading={busy} />
+      <ActionButton icon="close-circle-outline" label="Reject" tone="danger" onPress={onReject} disabled={busy} />
+    </View>
+  </View>
+);
+
 const AdminDashboardScreen = () => {
   const { isAdmin } = useAuth();
-  const { getFlaggedReports, deleteReport, reviewFlaggedReport, getAdminStats } = useItems();
+  const {
+    getFlaggedReports,
+    getPendingApprovalReports,
+    deleteReport,
+    reviewFlaggedReport,
+    reviewItemApproval,
+    getAdminStats,
+  } = useItems();
 
   const [flagged, setFlagged] = useState([]);
+  const [pendingApprovals, setPendingApprovals] = useState([]);
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(false);
   const [workingId, setWorkingId] = useState('');
+  const [approvalWorkingId, setApprovalWorkingId] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [keyword, setKeyword] = useState('');
   const [lastUpdated, setLastUpdated] = useState('');
@@ -128,11 +157,13 @@ const AdminDashboardScreen = () => {
   const loadDashboard = useCallback(async () => {
     setLoading(true);
     try {
-      const [flaggedResp, statsResp] = await Promise.all([
+      const [flaggedResp, pendingResp, statsResp] = await Promise.all([
         getFlaggedReports({ limit: 100 }),
+        getPendingApprovalReports({ limit: 100 }),
         getAdminStats(),
       ]);
       setFlagged(flaggedResp?.items || []);
+      setPendingApprovals(pendingResp?.items || []);
       setStats(statsResp?.stats || null);
       setLastUpdated(new Date().toLocaleTimeString());
     } catch (error) {
@@ -140,7 +171,7 @@ const AdminDashboardScreen = () => {
     } finally {
       setLoading(false);
     }
-  }, [getAdminStats, getFlaggedReports]);
+  }, [getAdminStats, getFlaggedReports, getPendingApprovalReports]);
 
   useEffect(() => {
     loadDashboard();
@@ -153,7 +184,8 @@ const AdminDashboardScreen = () => {
     recovered: stats?.recoveredReports || 0,
     lost: stats?.lostReports || 0,
     found: stats?.foundReports || 0,
-  }), [stats]);
+    pendingApprovals: stats?.pendingApprovals || pendingApprovals.length,
+  }), [pendingApprovals.length, stats]);
 
   const visibleFlagged = useMemo(() => {
     const q = keyword.trim().toLowerCase();
@@ -219,6 +251,32 @@ const AdminDashboardScreen = () => {
     );
   };
 
+  const onApprovalReview = (id, action) => {
+    Alert.alert(
+      action === 'approve' ? 'Approve Report' : 'Reject Report',
+      action === 'approve'
+        ? 'Make this report visible for users and homepage?'
+        : 'Reject this report and keep it hidden from users?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Confirm',
+          onPress: async () => {
+            setApprovalWorkingId(id);
+            try {
+              await reviewItemApproval(id, action, action === 'approve' ? 'Approved by admin dashboard.' : 'Rejected by admin dashboard.');
+              await loadDashboard();
+            } catch (error) {
+              Alert.alert('Failed', error?.response?.data?.message || 'Could not update report approval.');
+            } finally {
+              setApprovalWorkingId('');
+            }
+          },
+        },
+      ]
+    );
+  };
+
   if (!isAdmin) {
     return (
       <SafeAreaView style={styles.root}>
@@ -243,6 +301,7 @@ const AdminDashboardScreen = () => {
 
         <View style={styles.summaryRow}>
           <SummaryCard label="Flagged" value={totals.flagged} icon="flag-outline" color="#b42318" bg="#fff1f2" />
+          <SummaryCard label="Pending" value={totals.pendingApprovals} icon="clock-outline" color="#9a3412" bg="#fff7ed" />
           <SummaryCard label="Reports" value={totals.reports} icon="file-document-multiple-outline" />
           <SummaryCard label="Users" value={totals.users} icon="account-group-outline" color="#15803d" bg="#ecfdf3" />
         </View>
@@ -284,19 +343,53 @@ const AdminDashboardScreen = () => {
       </View>
 
       <View style={styles.sectionRow}>
-        <Text style={styles.sectionTitle}>Flagged Reports</Text>
-        <Text style={styles.sectionCount}>{visibleFlagged.length} / {totals.flagged}</Text>
+        <Text style={styles.sectionTitle}>Pending Approvals</Text>
+        <Text style={styles.sectionCount}>{pendingApprovals.length}</Text>
       </View>
     </View>
   );
 
+  const pendingList = (
+    <FlatList
+      data={pendingApprovals}
+      keyExtractor={(item) => item._id}
+      horizontal
+      showsHorizontalScrollIndicator={false}
+      contentContainerStyle={styles.pendingList}
+      renderItem={({ item }) => (
+        <View style={styles.pendingCardWrap}>
+          <PendingApprovalCard
+            item={item}
+            busy={approvalWorkingId === item._id}
+            onApprove={() => onApprovalReview(item._id, 'approve')}
+            onReject={() => onApprovalReview(item._id, 'reject')}
+          />
+        </View>
+      )}
+      ListEmptyComponent={
+        <View style={styles.pendingEmpty}>
+          <Text style={styles.pendingEmptyText}>No pending reports right now.</Text>
+        </View>
+      }
+    />
+  );
+
   return (
     <SafeAreaView style={styles.root}>
+      {pendingList}
       <FlatList
         data={visibleFlagged}
         keyExtractor={(item) => item._id}
         contentContainerStyle={styles.listContent}
-        ListHeaderComponent={listHeader}
+        ListHeaderComponent={(
+          <View>
+            {listHeader}
+            <View style={styles.sectionRow}>
+        <Text style={styles.sectionTitle}>Flagged Reports</Text>
+        <Text style={styles.sectionCount}>{visibleFlagged.length} / {totals.flagged}</Text>
+      </View>
+          </View>
+        )}
         refreshControl={<RefreshControl refreshing={loading} onRefresh={loadDashboard} tintColor={C.blue} />}
         ListEmptyComponent={
           loading ? (
@@ -325,6 +418,22 @@ const AdminDashboardScreen = () => {
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: C.bg },
+  pendingList: {
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
+  pendingCardWrap: {
+    width: 320,
+    marginRight: 10,
+  },
+  pendingEmpty: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  pendingEmptyText: {
+    color: C.muted,
+    fontWeight: '600',
+  },
 
   hero: {
     backgroundColor: C.blue,

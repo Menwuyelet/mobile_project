@@ -3,23 +3,20 @@ const Item = require('../models/Item');
 async function autoArchiveExpiredItems() {
   try {
     const now = new Date();
-    
-    // Find items that should be archived (archivedAt is in the past and item is not already archived)
+
+    // Archive only active lost/found reports whose expiry date has passed.
     const result = await Item.updateMany(
       {
         archivedAt: { $lte: now },
-        $or: [
-          { archivedAt: { $exists: true } },
-          { status: { $in: ['lost', 'found'] } } // Only archive active lost/found items
-        ]
+        status: { $in: ['lost', 'found'] },
       },
       {
         $set: {
-          status: 'archived'
-        }
+          status: 'archived',
+        },
       }
     );
-    
+
     if (result.modifiedCount > 0) {
       console.log(`[${now.toISOString()}] Auto-archived ${result.modifiedCount} expired items`);
     }

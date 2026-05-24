@@ -5,6 +5,20 @@ const Notification = require('../models/Notification');
 
 const composeConversationId = (a, b, itemId) => [a, b].sort().join('_') + `_${itemId}`;
 
+const canAccessItemConversation = ({ item, userId, otherUserId, isAdmin }) => {
+  if (isAdmin) {
+    return true;
+  }
+
+  const reporterId = item?.reportedBy?.toString();
+  if (!reporterId) {
+    return false;
+  }
+
+  // To keep chats tied to the report owner, at least one side must be the reporter.
+  return reporterId === userId || reporterId === otherUserId;
+};
+
 const listConversation = async (req, res, next) => {
   try {
     const { itemId, otherUserId } = req.params;
@@ -13,7 +27,18 @@ const listConversation = async (req, res, next) => {
       return res.status(400).json({ message: 'Invalid parameters.' });
     }
 
-    const conversationId = composeConversationId(req.user._id.toString(), otherUserId, itemId);
+    const item = await Item.findById(itemId).select('_id reportedBy');
+    if (!item) {
+      return res.status(404).json({ message: 'Referenced item not found.' });
+    }
+
+    const currentUserId = req.user._id.toString();
+    const isAdmin = req.user.role === 'admin';
+    if (!canAccessItemConversation({ item, userId: currentUserId, otherUserId, isAdmin })) {
+      return res.status(403).json({ message: 'Not allowed to access this conversation.' });
+    }
+
+    const conversationId = composeConversationId(currentUserId, otherUserId, itemId);
     const messages = await Message.find({ conversationId }).sort({ createdAt: 1 });
 
     return res.json({ messages, conversationId });
@@ -43,7 +68,13 @@ const sendMessage = async (req, res, next) => {
       return res.status(404).json({ message: 'Referenced item not found.' });
     }
 
-    const conversationId = composeConversationId(req.user._id.toString(), receiverId, itemId);
+    const currentUserId = req.user._id.toString();
+    const isAdmin = req.user.role === 'admin';
+    if (!canAccessItemConversation({ item, userId: currentUserId, otherUserId: receiverId.toString(), isAdmin })) {
+      return res.status(403).json({ message: 'Not allowed to start this conversation.' });
+    }
+
+    const conversationId = composeConversationId(currentUserId, receiverId, itemId);
 
     const created = await Message.create({
       conversationId,

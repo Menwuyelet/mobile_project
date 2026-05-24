@@ -35,4 +35,9 @@ export const authService = {
     const { data } = await apiClient.patch(`/auth/admin/users/${id}/suspension`, { suspend, reason });
     return data;
   },
+
+  async setUserRole(id, role) {
+    const { data } = await apiClient.patch(`/auth/admin/users/${id}/role`, { role });
+    return data;
+  },
 };

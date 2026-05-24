@@ -7,6 +7,7 @@ const {
   updatePassword,
   listUsersAdmin,
   setUserSuspension,
+  setUserRole,
 } = require('../controllers/authController');
 const { requireAuth, requireAdmin } = require('../middleware/auth');
 
@@ -19,5 +20,6 @@ router.put('/profile', requireAuth, updateProfile);
 router.put('/password', requireAuth, updatePassword);
 router.get('/admin/users', requireAuth, requireAdmin, listUsersAdmin);
 router.patch('/admin/users/:id/suspension', requireAuth, requireAdmin, setUserSuspension);
+router.patch('/admin/users/:id/role', requireAuth, requireAdmin, setUserRole);
 
 module.exports = router;

@@ -275,6 +275,40 @@ const setUserSuspension = async (req, res, next) => {
   }
 };
 
+const setUserRole = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const nextRole = trimString(req.body.role).toLowerCase();
+
+    if (!['user', 'admin'].includes(nextRole)) {
+      return res.status(400).json({ message: 'Role must be either user or admin.' });
+    }
+
+    const target = await User.findById(id);
+    if (!target) {
+      return res.status(404).json({ message: 'User not found.' });
+    }
+
+    if (target._id.toString() === req.user._id.toString()) {
+      return res.status(400).json({ message: 'You cannot change your own role.' });
+    }
+
+    if (target.role === 'admin' && nextRole === 'user') {
+      const adminCount = await User.countDocuments({ role: 'admin' });
+      if (adminCount <= 1) {
+        return res.status(400).json({ message: 'At least one admin account is required.' });
+      }
+    }
+
+    target.role = nextRole;
+    await target.save();
+
+    return res.json({ user: serializeUser(target) });
+  } catch (error) {
+    return next(error);
+  }
+};
+
 module.exports = {
   register,
   login,
@@ -283,4 +317,5 @@ module.exports = {
   updatePassword,
   listUsersAdmin,
   setUserSuspension,
+  setUserRole,
 };
